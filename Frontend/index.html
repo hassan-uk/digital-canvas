@@ -1,22 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Digital Canvas</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Digital Canvas</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <h1>Digital Canvas</h1>
+  <h1>Digital Canvas</h1>
 
-    <div class="toolbar">
-        <input type="color" id="colorPicker">
-        <input type="range" id="brushSize" min="1" max="25" value="5">
-        <button id="clearButton">Clear</button>
-    </div>
+  <!-- Toolbar  -->
+  <div class="toolbar">
+    <input type="color" id="colorPicker" value="#000000">
+    <input type="range" id="brushSize" min="1" max="25" value="5">
+    <button id="clearButton">Clear</button>
 
-    <canvas id="canvas" width="1200" height="630"></canvas>
+    <!-- Project save/load (JSON) -->
+    <button id="saveProjectBtn">Save Project</button>
 
-    <script src="script.js"></script>
+    <label class="fileLabel">
+      Load Project
+      <input type="file" id="loadProjectInput" accept="application/json">
+    </label>
+  </div>
+
+  <!-- Canvas stays centered because it's on its own line -->
+  <canvas id="canvas" width="1200" height="630"></canvas>
+
+  <!-- type="module" allows us to import from state.js -->
+  <script type="module" src="script.js"></script>
 </body>
 </html>
