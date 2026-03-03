@@ -2,10 +2,10 @@
   Clean version of the advanced canvas system
   Keeps variable names similar to the old code
   But still supports:
-  - state system
-  - saving projects
-  - loading projects
-  - future shapes / text / images
+   state system
+   saving projects
+   loading projects
+   future shapes / text / images
 */
 
 import { state } from "./state.js";
