@@ -12,7 +12,6 @@
 */
 
 export const state = {
-  // Brush settings
   brush: {
     color: "#000000",
     size: 5
@@ -24,10 +23,10 @@ export const state = {
     For now, we store only pen strokes as:
     { type: "stroke", color, size, points: [{x,y}, ...] }
 
-    Later teammates will add:
-    - shapes: { type: "shape", shapeType: "triangle", x, y, w, h, ... }
-    - text:   { type: "text", value, x, y, font, ... }
-    - images: { type: "image", src, x, y, w, h }
+    Later team members will add:
+     shapes: { type: "shape", shapeType: "triangle", x, y, w, h, ... }
+     text:   { type: "text", value, x, y, font, ... }
+     images: { type: "image", src, x, y, w, h }
   */
   objects: [],
 
