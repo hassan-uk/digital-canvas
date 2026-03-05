@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digital Canvas</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Digital Canvas</h1>
+
+  <div class="toolbar">
+    <input type="color" id="colorPicker" value="#000000">
+    <input type="range" id="brushSize" min="1" max="25" value="5">
+
+    <button id="deleteBtn">Delete Selected</button>
+    <button id="clearButton">Clear</button>
+
+    <button id="saveProjectBtn">Save Project</button>
+
+    <label class="fileLabel">
+      Load Project
+      <input type="file" id="loadProjectInput" accept="application/json">
+    </label>
+  </div>
+
+  <canvas id="canvas" width="1200" height="630"></canvas>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
