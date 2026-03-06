@@ -1,12 +1,14 @@
 body {
   text-align: center;
-  font-family: Arial, sans-serif;
   background: #f2f2f2;
   margin: 0;
   padding: 0;
 }
 
 h1 {
+  font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-weight: 600;
+  color: #333;
   margin-top: 20px;
 }
 
@@ -14,9 +16,37 @@ h1 {
   margin: 15px auto 20px auto;
   display: flex;
   justify-content: center;
-  gap: 10px;
+  padding: 20px;
+  gap: 15px;
   align-items: center;
   flex-wrap: wrap;
+  
+  background: white;
+  padding: 15px;
+  border-radius: 20px;
+  width: fit-content;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.toolbar button {
+  width: 110px;         
+  height: 40px;         
+  background-color: #5a3f3f;  
+  color: white;          
+  border: none;
+  border-radius: 6px;
+  font-family: Segoe UI, 'Helvetica', Arial, sans-serif;
+  font-weight: 500; 
+  line-height: 15px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+.toolbar button:hover {
+  background-color: #a46d6d;
+  transform: translateY(-2px);
 }
 
 canvas {
@@ -25,15 +55,95 @@ canvas {
   cursor: crosshair;
   display: block;
   margin: 0 auto 30px auto;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+
+  background-image:
+    linear-gradient(#eaeaea 1px, transparent 1px),
+    linear-gradient(90deg, #eaeaea 1px, transparent 1px);
+  background-size: 25px 25px;
+
 }
 
 .fileLabel {
-  padding: 6px 10px;
-  border: 1px solid #444;
-  background: white;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  display: flex;
+  width: 110px;         
+  height: 40px;         
+  background-color: #5a3f3f; 
+  color: white;          
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-family: Segoe UI, 'Helvetica', Arial, sans-serif;
+  font-weight: 500; 
+  line-height: 15px;
   cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+  text-align: center; 
 }
 
 .fileLabel input {
   display: none;
+}
+
+.fileLabel:hover {
+  background-color: #a46d6d;
+  transform: translateY(-2px);
+}
+
+
+/* Save Project Popup */
+.savePopup {
+  display: none; 
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.popup-content {
+  background: white;
+  padding: 25px 20px;
+  border-radius: 10px;
+  text-align: center;
+  width: 350px;
+}
+
+.popup-content h2 {
+  margin-bottom: 15px;
+  font-size: 20px;
+  color: #2c2c2c;
+}
+
+.popup-content input {
+  width: 90%;
+  padding: 10px;
+  margin-bottom: 15px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.popup-buttons button {
+  width: 100px;
+  height: 35px;
+  margin: 0 5px;
+  background-color: #2c2c2c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.popup-buttons button:hover {
+  background-color: #a46d6d;
 }

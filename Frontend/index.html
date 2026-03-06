@@ -2,30 +2,42 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Digital Canvas</title>
+  <title>VisualGrid</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-  <h1>Digital Canvas</h1>
+  <h1>VisualGrid</h1>
 
   <!-- Toolbar  -->
   <div class="toolbar">
     <input type="color" id="colorPicker" value="#000000">
     <input type="range" id="brushSize" min="1" max="25" value="5">
-    <button id="clearButton">Clear</button>
 
-    <!-- Project save/load (JSON) -->
+    <button id="deleteBtn">Delete Selected</button>
+    <button id="clearButton">Clear</button>
     <button id="saveProjectBtn">Save Project</button>
 
     <label class="fileLabel">
       Load Project
       <input type="file" id="loadProjectInput" accept="application/json">
     </label>
+    
   </div>
 
   <!-- Canvas stays centered because it's on its own line -->
   <canvas id="canvas" width="1200" height="630"></canvas>
+  
+  <!-- Save Project Popup -->
+<div id="savePopup" class="savePopup">
+  <div class="popup-content">
+    <h2>Save Your Project</h2>
+    <input type="text" id="projectNameInput" placeholder="Enter project name" />
+    <div class="popup-buttons">
+      <button id="saveConfirmBtn">Save</button>
+      <button id="saveCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
 
   <!-- type="module" allows us to import from state.js -->
   <script type="module" src="script.js"></script>

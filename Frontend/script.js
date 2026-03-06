@@ -20,6 +20,10 @@ const brushSize = document.getElementById("brushSize");
 const clearButton = document.getElementById("clearButton");
 const saveProjectBtn = document.getElementById("saveProjectBtn");
 const loadProjectInput = document.getElementById("loadProjectInput");
+const deleteBtn = document.getElementById("deleteBtn");
+
+let dragging = false;
+let dragStart = { x: 0, y: 0 };
 
 // Set starting brush settings
 state.brush.color = colorPicker.value;
@@ -40,6 +44,40 @@ function createId() {
   return crypto.randomUUID();
 }
 
+
+function getBounds(stroke) {
+  const xs = stroke.points.map(p => p.x);
+  const ys = stroke.points.map(p => p.y);
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys)
+  };
+}
+
+function getObjectAt(x, y) {
+  for (let i = state.objects.length - 1; i >= 0; i--) {
+    const obj = state.objects[i];
+
+    if (obj.type !== "stroke") continue;
+
+    const b = getBounds(obj);
+
+    if (
+      x >= b.minX - 5 &&
+      x <= b.maxX + 5 &&
+      y >= b.minY - 5 &&
+      y <= b.maxY + 5
+    ) {
+      return obj;
+    }
+  }
+
+  return null;
+}
+
 // Render everything from state
 function render() {
   // Clear canvas
@@ -47,8 +85,14 @@ function render() {
 
   // Draw every saved object
   for (const obj of state.objects) {
-    if (obj.type === "stroke") drawStroke(obj);
 
+  if (obj.type === "stroke") drawStroke(obj);
+
+  if (state.selectedId === obj.id) {
+    drawSelection(obj);
+  }
+
+}
     // future refrence for rosette, nevile and victoria
     //just uncomment the bottom lines based on your given task
     
@@ -56,8 +100,8 @@ function render() {
     // if (obj.type === "text") drawText(obj);
     // if (obj.type === "image") drawImage(obj);
   }
-}
 
+  
 // this draws pen strokes
 function drawStroke(stroke) {
   if (!stroke.points || stroke.points.length < 2) return;
@@ -79,43 +123,100 @@ function drawStroke(stroke) {
   pen.restore();
 }
 
+function drawSelection(obj) {
+  const b = getBounds(obj);
+
+  pen.strokeStyle = "blue";
+  pen.lineWidth = 2;
+
+  pen.strokeRect(
+    b.minX - 5,
+    b.minY - 5,
+    (b.maxX - b.minX) + 10,
+    (b.maxY - b.minY) + 10
+  );
+}
+
 // Mouse drawing
 canvas.addEventListener("mousedown", (event) => {
+  const pos = getMousePosition(event);
+  const clicked = getObjectAt(pos.x, pos.y);
+
+  // if user clicked an existing object
+  if (clicked) {
+    state.selectedId = clicked.id;
+    dragging = true;
+    dragStart = pos;
+
+    render();
+    return;
+  }
+
+  // NORMAL DRAWING
+
+  state.selectedId = null;
+
   state.drawing.isDrawing = true;
 
-  const startPoint = getMousePosition(event);
   const strokeId = createId();
 
-  // this saves new stroke into state
   state.objects.push({
     id: strokeId,
     type: "stroke",
     color: state.brush.color,
     size: state.brush.size,
-    points: [startPoint]
+    points: [pos]
   });
 
   state.drawing.activeStrokeId = strokeId;
 
   render();
 });
-
 canvas.addEventListener("mousemove", (event) => {
-  if (!state.drawing.isDrawing) return;
 
-  const activeStroke = state.objects.find(
-    obj => obj.id === state.drawing.activeStrokeId
-  );
+  const pos = getMousePosition(event);
 
-  if (!activeStroke) return;
+  // DRAWING (original behaviour)
+  if (state.drawing.isDrawing) {
 
-  activeStroke.points.push(getMousePosition(event));
-  render();
+    const activeStroke = state.objects.find(
+      obj => obj.id === state.drawing.activeStrokeId
+    );
+
+    if (!activeStroke) return;
+
+    activeStroke.points.push(pos);
+
+    render();
+    return;
+  }
+
+  // DRAGGING OBJECT
+  if (dragging && state.selectedId) {
+
+    const obj = state.objects.find(
+      o => o.id === state.selectedId
+    );
+
+    const dx = pos.x - dragStart.x;
+    const dy = pos.y - dragStart.y;
+
+    obj.points.forEach(p => {
+      p.x += dx;
+      p.y += dy;
+    });
+
+    dragStart = pos;
+
+    render();
+  }
+
 });
 
 window.addEventListener("mouseup", () => {
   state.drawing.isDrawing = false;
   state.drawing.activeStrokeId = null;
+  dragging = false;
 });
 
 // UI controls
@@ -131,24 +232,62 @@ clearButton.addEventListener("click", () => {
   state.objects = [];
   state.drawing.isDrawing = false;
   state.drawing.activeStrokeId = null;
+  state.selectedId = null;
 
   render();
 });
 
+function deleteSelected() {
+  if (!state.selectedId) return;
+
+  state.objects = state.objects.filter(
+    o => o.id !== state.selectedId
+  );
+  state.selectedId = null;
+
+  render();
+}
+deleteBtn.addEventListener("click", deleteSelected);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Delete") {
+    deleteSelected();
+  }
+});
+
 // Save project
+// popup elements
+const savePopup = document.getElementById("savePopup");
+const projectNameInput = document.getElementById("projectNameInput");
+const saveConfirmBtn = document.getElementById("saveConfirmBtn");
+const saveCancelBtn = document.getElementById("saveCancelBtn");
+
+// open popup
 saveProjectBtn.addEventListener("click", () => {
+  projectNameInput.value = "";
+  savePopup.style.display = "flex";
+});
+
+// save project
+saveConfirmBtn.addEventListener("click", () => {
+  const name = projectNameInput.value;
   const data = JSON.stringify(state, null, 2);
   const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
   const link = document.createElement("a");
   link.href = url;
-  link.download = "digital-canvas-project.json";
+  link.download = name + ".json";
   link.click();
 
   URL.revokeObjectURL(url);
+
+  savePopup.style.display = "none";
 });
 
+// cancel popup
+saveCancelBtn.addEventListener("click", () => {
+  savePopup.style.display = "none";
+});
 // Load project
 loadProjectInput.addEventListener("change", async (e) => {
   const file = e.target.files?.[0];
