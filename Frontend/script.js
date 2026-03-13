@@ -8,6 +8,8 @@
    future shapes / text / images
 */
 
+// RAINBOW PEN: https://www.w3schools.com/tags/canvas_strokestyle.asp
+
 import { state } from "./state.js";
 
 // Canvas setup
@@ -15,6 +17,11 @@ const canvas = document.getElementById("canvas");
 const pen = canvas.getContext("2d");
 
 // UI elements
+const selectBtn = document.getElementById("selectBtn");
+const paintBtn = document.getElementById("paintBtn");
+const highlightBtn = document.getElementById("highlightBtn");
+const eraseBtn = document.getElementById("eraseBtn");
+
 const colorPicker = document.getElementById("colorPicker");
 const brushSize = document.getElementById("brushSize");
 const clearButton = document.getElementById("clearButton");
@@ -22,12 +29,17 @@ const saveProjectBtn = document.getElementById("saveProjectBtn");
 const loadProjectInput = document.getElementById("loadProjectInput");
 const deleteBtn = document.getElementById("deleteBtn");
 
+// Variables
+let erasing = false;
 let dragging = false;
 let dragStart = { x: 0, y: 0 };
+let mode = "paint";
 
 // Set starting brush settings
-state.brush.color = colorPicker.value;
+state.brush.color = (colorPicker.value);
 state.brush.size = Number(brushSize.value);
+state.brush.shape = "round";
+state.brush.opacity = 1;
 
 // Get mouse position inside canvas
 function getMousePosition(event) {
@@ -78,6 +90,7 @@ function getObjectAt(x, y) {
   return null;
 }
 
+
 // Render everything from state
 function render() {
   // Clear canvas
@@ -99,9 +112,31 @@ function render() {
     // if (obj.type === "shape") drawShape(obj);
     // if (obj.type === "text") drawText(obj);
     // if (obj.type === "image") drawImage(obj);
-  }
+}
 
-  
+
+// MODES
+selectBtn.addEventListener("click", () => {
+  mode = "select";
+});
+
+paintBtn.addEventListener("click", () => {
+  mode = "paint";
+  state.brush.opacity = 1;
+  state.brush.shape = "round";
+});
+
+highlightBtn.addEventListener("click", () => {
+  mode = "highlight"
+  state.brush.opacity = 0.5;
+  state.brush.shape = "square";
+})
+
+eraseBtn.addEventListener("click", () => {
+  mode = "erase";
+});
+
+
 // this draws pen strokes
 function drawStroke(stroke) {
   if (!stroke.points || stroke.points.length < 2) return;
@@ -109,8 +144,9 @@ function drawStroke(stroke) {
   pen.save();
   pen.strokeStyle = stroke.color;
   pen.lineWidth = stroke.size;
-  pen.lineCap = "round";
-  pen.lineJoin = "round";
+  pen.lineCap = stroke.shape;
+  pen.lineJoin = stroke.shape;
+  pen.globalAlpha = stroke.opacity;
 
   pen.beginPath();
   pen.moveTo(stroke.points[0].x, stroke.points[0].y);
@@ -142,8 +178,9 @@ canvas.addEventListener("mousedown", (event) => {
   const pos = getMousePosition(event);
   const clicked = getObjectAt(pos.x, pos.y);
 
-  // if user clicked an existing object
-  if (clicked) {
+  // SELECTION 
+  // if user clicked on existing object
+  if (clicked && mode == "select") {
     state.selectedId = clicked.id;
     dragging = true;
     dragStart = pos;
@@ -153,25 +190,34 @@ canvas.addEventListener("mousedown", (event) => {
   }
 
   // NORMAL DRAWING
+  if (mode == "paint" || mode == "highlight") {
+    state.selectedId = null;
 
-  state.selectedId = null;
+    state.drawing.isDrawing = true;
 
-  state.drawing.isDrawing = true;
+    const strokeId = createId();
 
-  const strokeId = createId();
+    state.objects.push({
+      id: strokeId,
+      type: "stroke",
+      color: state.brush.color,
+      size: state.brush.size,
+      shape: state.brush.shape,
+      opacity: state.brush.opacity,
+      points: [pos]
+    });
 
-  state.objects.push({
-    id: strokeId,
-    type: "stroke",
-    color: state.brush.color,
-    size: state.brush.size,
-    points: [pos]
-  });
+    state.drawing.activeStrokeId = strokeId;
+  }
 
-  state.drawing.activeStrokeId = strokeId;
+  // ERASING
+  if (mode == "erase") {
+    erasing = true;
+  }
 
   render();
 });
+
 canvas.addEventListener("mousemove", (event) => {
 
   const pos = getMousePosition(event);
@@ -189,6 +235,19 @@ canvas.addEventListener("mousemove", (event) => {
 
     render();
     return;
+  }
+
+  // ERASING
+  if (erasing) {
+  //  if mouse position collides with stroke position, get stroke and set to null
+  state.selectedId = getObjectAt(pos.x, pos.y).id;
+
+  state.objects = state.objects.filter(
+    o => o.id !== state.selectedId
+  );
+  state.selectedId = null;
+
+  render();
   }
 
   // DRAGGING OBJECT
@@ -210,14 +269,15 @@ canvas.addEventListener("mousemove", (event) => {
 
     render();
   }
-
 });
 
 window.addEventListener("mouseup", () => {
   state.drawing.isDrawing = false;
   state.drawing.activeStrokeId = null;
   dragging = false;
+  erasing = false
 });
+
 
 // UI controls
 colorPicker.addEventListener("change", (e) => {
@@ -247,12 +307,15 @@ function deleteSelected() {
 
   render();
 }
+
+// Delete selected
 deleteBtn.addEventListener("click", deleteSelected);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Delete") {
     deleteSelected();
   }
 });
+
 
 // Save project
 // popup elements
@@ -288,6 +351,7 @@ saveConfirmBtn.addEventListener("click", () => {
 saveCancelBtn.addEventListener("click", () => {
   savePopup.style.display = "none";
 });
+
 // Load project
 loadProjectInput.addEventListener("change", async (e) => {
   const file = e.target.files?.[0];

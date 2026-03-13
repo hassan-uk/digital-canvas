@@ -49,6 +49,11 @@ h1 {
   transform: translateY(-2px);
 }
 
+/*RIMA WUZ HERE*/
+.smallBtn {
+  width: 50px !important;
+}
+
 canvas {
   background: white;
   border: 2px solid black;
