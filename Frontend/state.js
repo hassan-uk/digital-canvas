@@ -14,7 +14,8 @@
 export const state = {
   brush: {
     color: "#000000",
-    size: 5
+    size: 5,
+    fill: false
   },
 
   /*

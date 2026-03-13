@@ -49,6 +49,40 @@ h1 {
   transform: translateY(-2px);
 }
 
+.toolbar button.iconBtn {
+  width: 40px;
+}
+
+.fillToggle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 60px;
+  height: 40px;
+  background-color: #5a3f3f;
+  color: white;
+  border-radius: 6px;
+  font-family: Segoe UI, Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+.fillToggle:hover {
+  background-color: #a46d6d;
+  transform: translateY(-2px);
+}
+
+.fillToggle input {
+  display: none;
+}
+
+.fillToggle:has(input:checked) {
+  background-color: #893b3b;
+}
+
 canvas {
   background: white;
   border: 2px solid black;

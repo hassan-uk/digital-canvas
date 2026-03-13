@@ -22,6 +22,13 @@ const saveProjectBtn = document.getElementById("saveProjectBtn");
 const loadProjectInput = document.getElementById("loadProjectInput");
 const deleteBtn = document.getElementById("deleteBtn");
 
+// Shape buttons
+const addRectBtn = document.getElementById("addRectBtn");
+const addCircleBtn = document.getElementById("addCircleBtn");
+const addTriangleBtn = document.getElementById("addTriangleBtn");
+const addLineBtn = document.getElementById("addLineBtn");
+const fillToggle = document.getElementById("fillToggle");
+
 let dragging = false;
 let dragStart = { x: 0, y: 0 };
 
@@ -45,23 +52,38 @@ function createId() {
 }
 
 
-function getBounds(stroke) {
-  const xs = stroke.points.map(p => p.x);
-  const ys = stroke.points.map(p => p.y);
+function getBounds(obj) {
 
-  return {
-    minX: Math.min(...xs),
-    minY: Math.min(...ys),
-    maxX: Math.max(...xs),
-    maxY: Math.max(...ys)
-  };
+  if (obj.type == "stroke") {
+    const xs = obj.points.map(p => p.x);
+    const ys = obj.points.map(p => p.y);
+
+    return {
+      minX: Math.min(...xs),
+      minY: Math.min(...ys),
+      maxX: Math.max(...xs),
+      maxY: Math.max(...ys)
+    };
+  }
+
+  if (obj.type === "shape") {
+    if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+      return { minX: obj.x, minY: obj.y, maxX: obj.x + obj.width, maxY: obj.y + obj.height };
+    }
+    if (obj.shapeType === "circle") {
+      return { minX: obj.x - obj.radius, minY: obj.y - obj.radius, maxX: obj.x + obj.radius, maxY: obj.y + obj.radius };
+    }
+    if (obj.shapeType === "line") {
+      return { minX: Math.min(obj.x, obj.x2), minY: Math.min(obj.y, obj.y2), maxX: Math.max(obj.x, obj.x2), maxY: Math.max(obj.y, obj.y2) };
+    }
+  }
 }
 
 function getObjectAt(x, y) {
   for (let i = state.objects.length - 1; i >= 0; i--) {
     const obj = state.objects[i];
 
-    if (obj.type !== "stroke") continue;
+    if (obj.type !== "stroke" && obj.type !== "shape") continue;
 
     const b = getBounds(obj);
 
@@ -86,20 +108,21 @@ function render() {
   // Draw every saved object
   for (const obj of state.objects) {
 
-  if (obj.type === "stroke") drawStroke(obj);
+    if (obj.type === "stroke") drawStroke(obj);
 
-  if (state.selectedId === obj.id) {
-    drawSelection(obj);
+    if (obj.type === "shape") obj.draw(pen);
+
+    if (state.selectedId === obj.id) {
+      drawSelection(obj);
+    }
+
   }
-
-}
     // future refrence for rosette, nevile and victoria
     //just uncomment the bottom lines based on your given task
     
-    // if (obj.type === "shape") drawShape(obj);
     // if (obj.type === "text") drawText(obj);
     // if (obj.type === "image") drawImage(obj);
-  }
+}
 
   
 // this draws pen strokes
@@ -122,6 +145,124 @@ function drawStroke(stroke) {
   pen.stroke();
   pen.restore();
 }
+
+function drawShape(shapeType) {
+  let shape;
+
+  if (shapeType === "rectangle") {
+    shape = {
+      id: createId(),
+      type: "shape",
+      shapeType: "rectangle",
+      x: canvas.width / 2 - 50,
+      y: canvas.height / 2 - 50,
+      width: 100,
+      height: 80,
+      color: state.brush.color,
+      fill: state.brush.fill,
+      draw: function(pen) {
+        pen.strokeStyle = this.color;
+
+        if (this.fill) {
+          pen.fillStyle = this.color;
+          pen.fillRect(this.x, this.y, this.width, this.height);
+        }
+
+        pen.strokeRect(this.x, this.y, this.width, this.height);
+      }
+    };
+  }
+
+  if (shapeType === "circle") {
+    shape = {
+      id: createId(),
+      type: "shape",
+      shapeType: "circle",
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: 60,
+      color: state.brush.color,
+      fill: state.brush.fill,
+      draw: function(pen) {
+        pen.strokeStyle = this.color;
+        pen.beginPath();
+        pen.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+        if (this.fill) {
+          pen.fillStyle = this.color;
+          pen.fill();
+        }
+
+        pen.stroke();
+      }
+    };
+  }
+
+  if (shapeType === "triangle") {
+    shape = {
+      id: createId(),
+      type: "shape",
+      shapeType: "triangle",
+      x: canvas.width / 2 - 50,
+      y: canvas.height / 2 - 50,
+      width: 100,
+      height: 100,
+      color: state.brush.color,
+      fill: state.brush.fill,
+      draw: function(pen) {
+        pen.strokeStyle = this.color;
+        pen.beginPath();
+        pen.moveTo(this.x + this.width/2, this.y);
+        pen.lineTo(this.x, this.y + this.height);
+        pen.lineTo(this.x + this.width, this.y + this.height);
+        pen.closePath();
+
+        if (this.fill) {
+          pen.fillStyle = this.color;
+          pen.fill();
+        }
+        pen.stroke();
+      }
+    };
+  }
+
+  if (shapeType === "line") {
+    shape = {
+      id: createId(),
+      type: "shape",
+      shapeType: "line",
+      x: canvas.width / 2 - 50,
+      y: canvas.height / 2,
+      x2: canvas.width / 2 + 50,
+      y2: canvas.height / 2,
+      color: state.brush.color,
+      fill: state.brush.fill,
+      draw: function(pen) {
+        pen.strokeStyle = this.color;
+        pen.beginPath();
+        pen.moveTo(this.x, this.y);
+        pen.lineTo(this.x2, this.y2);
+        pen.stroke();
+      }
+    };
+  }
+
+  state.objects.push(shape);
+  state.selectedId = shape.id;
+  render();
+}
+
+// Event listeners
+addRectBtn.addEventListener("click", () => drawShape("rectangle"));
+addCircleBtn.addEventListener("click", () => drawShape("circle"));
+addTriangleBtn.addEventListener("click", () => drawShape("triangle"));
+addLineBtn.addEventListener("click", () => drawShape("line"));
+
+state.brush.fill = fillToggle.checked;
+
+fillToggle.addEventListener("change", (e) => {
+  state.brush.fill = e.target.checked;
+});
 
 function drawSelection(obj) {
   const b = getBounds(obj);
@@ -201,10 +342,24 @@ canvas.addEventListener("mousemove", (event) => {
     const dx = pos.x - dragStart.x;
     const dy = pos.y - dragStart.y;
 
-    obj.points.forEach(p => {
-      p.x += dx;
-      p.y += dy;
-    });
+    if (obj.type === "stroke") {
+      obj.points.forEach(p => {
+        p.x += dx;
+        p.y += dy;
+      });
+    }
+
+    if (obj.type === "shape") {
+      if (obj.shapeType === "line") {
+        obj.x += dx;
+        obj.y += dy;
+        obj.x2 += dx;
+        obj.y2 += dy;
+      } else {
+        obj.x += dx;
+        obj.y += dy;
+      }
+    }
 
     dragStart = pos;
 
