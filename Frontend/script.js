@@ -228,6 +228,11 @@ canvas.addEventListener('click', (e) => {
 
 // Double-click on text to edit it
 canvas.addEventListener('dblclick', (e) => {
+    if (isAddingText && selectedText) {
+        // Prevent other operations during text creation
+        return;
+    }
+    
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -235,6 +240,7 @@ canvas.addEventListener('dblclick', (e) => {
     const clickedText = getTextAtPosition(x, y);
     if (clickedText) {
         e.preventDefault();
+        e.stopPropagation();
         // Find the index of the clicked text
         const index = textObjects.indexOf(clickedText);
         createTextInput(clickedText.x, clickedText.y, index);
@@ -261,14 +267,25 @@ function createTextInput(x, y, editIndex) {
     input.style.background = 'transparent';
     input.style.border = '1px dashed #aaa';
     input.style.outline = 'none';
-    input.style.zIndex = 999;
+    input.style.zIndex = 1001;
     input.style.minWidth = '100px';
+    input.style.padding = '2px';
     document.body.appendChild(input);
-    input.focus();
-    input.select();
+    
+    // Give it a moment to render before focusing
+    setTimeout(() => {
+        input.focus();
+        input.select();
+    }, 10);
+
+    // Track if text has been confirmed to avoid double-processing
+    let confirmed = false;
 
     // When user presses Enter or clicks away, confirm the text
-    function confirmText() {
+    const confirmText = () => {
+        if (confirmed) return;
+        confirmed = true;
+
         const value = input.value.trim();
         if (value) {
             if (editIndex !== null) {
@@ -289,22 +306,43 @@ function createTextInput(x, y, editIndex) {
                     align: textAlign,
                     underline: isUnderline
                 });
+                isAddingText = false;
             }
             selectedText = null;
             render();
         }
-        if (document.body.contains(input)) {
-            document.body.removeChild(input);
+        
+        // Safely remove input
+        try {
+            if (document.body.contains(input)) {
+                document.body.removeChild(input);
+            }
+        } catch(e) {
+            // Input already removed
         }
-        isAddingText = false;
         canvas.style.cursor = 'crosshair';
-    }
+    };
 
     input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') confirmText();
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            confirmText();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            confirmed = true;
+            if (document.body.contains(input)) {
+                document.body.removeChild(input);
+            }
+            render();
+            canvas.style.cursor = 'crosshair';
+        }
     });
 
-    input.addEventListener('blur', confirmText);
+    input.addEventListener('blur', () => {
+        // Use timeout to allow other handlers to complete
+        setTimeout(confirmText, 100);
+    });
 }
 
 // Build font string from current settings
