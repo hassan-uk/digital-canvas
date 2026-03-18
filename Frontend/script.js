@@ -124,6 +124,9 @@ function render() {
     // if (obj.type === "image") drawImage(obj);
 }
 
+ function addText(){
+  
+ }
   
 // this draws pen strokes
 function drawStroke(stroke) {
