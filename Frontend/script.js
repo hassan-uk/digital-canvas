@@ -131,40 +131,139 @@ function render() {
 }
 
 // Text formatting state
-let textAlign = "left";
+// Text state
+let textAlign = 'left';
 let isBold = false;
 let isItalic = false;
+let isUnderline = false;
+let isAddingText = false;
+let textObjects = []; // stores all text on canvas
+let selectedText = null;
+let isDragging = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
- function addText(){
-    const font = document.getElementById("fontFamily").value;
-    const size = document.getElementById("fontSize").value;
-    const userText = prompt("Enter your text:");
+// When "Add Text" is clicked, enable text placement mode
+document.getElementById('insertTextBtn').addEventListener('click', () => {
+    isAddingText = true;
+    canvas.style.cursor = 'text';
+});
 
-    if (userText) {
-      document.fonts.ready.then(() => {
-        const style = `${isItalic ? "italic " : ""}${isBold ? "bold " : ""}${size}px ${font}`;
-        ctx.font = '${style}${size}px ${font}';
-       //set fill colour
-        ctx.fillStyle = document.getElementById("colorPicker").value;
-        //Set Alignment
-        ctx.textAlign = textAlign;
-        //Draw text
-        ctx.fillText(userText, canvas.width / 2, canvas.height / 2);
+// Click on canvas to place text input
+canvas.addEventListener('click', (e) => {
+    if (!isAddingText) return;
 
-        if (isUnderline) {
-          const textWidth = ctx.measureText(userText).width;
-          ctx.beginPath();
-          ctx.moveTo(canvas.width / 2 - textWidth / 2, canvas.height / 2 + size / 2);
-          ctx.lineTo(canvas.width / 2 + textWidth / 2, canvas.height / 2 + size / 2);
-          ctx.strokeStyle = document.getElementById("colorPicker").value;
-          ctx.lineWidth = size / 10;
-          ctx.stroke();
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Create an input box on top of the canvas
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Type here...';
+    input.style.position = 'absolute';
+    input.style.left = `${rect.left + x}px`;
+    input.style.top = `${rect.top + y - 10}px`;
+    input.style.font = getFontString();
+    input.style.color = document.getElementById('colorPicker').value;
+    input.style.background = 'transparent';
+    input.style.border = '1px dashed #aaa';
+    input.style.outline = 'none';
+    input.style.zIndex = 999;
+    input.style.minWidth = '100px';
+    document.body.appendChild(input);
+    input.focus();
+
+    // When user presses Enter or clicks away, confirm the text
+    function confirmText() {
+        const value = input.value.trim();
+        if (value) {
+            textObjects.push({
+                text: value,
+                x,
+                y,
+                font: getFontString(),
+                color: document.getElementById('colorPicker').value,
+                align: textAlign,
+                underline: isUnderline
+            });
+            redrawCanvas();
         }
+        document.body.removeChild(input);
+        isAddingText = false;
+        canvas.style.cursor = 'crosshair';
+    }
 
- })
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmText();
+    });
+
+    input.addEventListener('blur', confirmText);
+});
+
+// Build font string from current settings
+function getFontString() {
+    const size = document.getElementById('fontSize').value;
+    const font = document.getElementById('fontFamily').value;
+    return `${isItalic ? 'italic ' : ''}${isBold ? 'bold ' : ''}${size}px '${font}'`;
 }
- }
 
+// Redraw everything on canvas
+function redrawCanvas() {
+    // Redraw your existing shapes first
+    // (your team's redraw function goes here)
+
+    // Then draw all text objects
+    textObjects.forEach(obj => {
+        ctx.font = obj.font;
+        ctx.fillStyle = obj.color;
+        ctx.textAlign = obj.align;
+        ctx.fillText(obj.text, obj.x, obj.y);
+
+        // Underline
+        if (obj.underline) {
+            const width = ctx.measureText(obj.text).width;
+            ctx.beginPath();
+            ctx.moveTo(obj.x, obj.y + 3);
+            ctx.lineTo(obj.x + width, obj.y + 3);
+            ctx.strokeStyle = obj.color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    });
+}
+
+// Drag text
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Check if clicked on a text object
+    textObjects.forEach(obj => {
+        ctx.font = obj.font;
+        const width = ctx.measureText(obj.text).width;
+        if (x >= obj.x && x <= obj.x + width && y >= obj.y - 20 && y <= obj.y + 5) {
+            selectedText = obj;
+            isDragging = true;
+            dragOffsetX = x - obj.x;
+            dragOffsetY = y - obj.y;
+        }
+    });
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!isDragging || !selectedText) return;
+    const rect = canvas.getBoundingClientRect();
+    selectedText.x = e.clientX - rect.left - dragOffsetX;
+    selectedText.y = e.clientY - rect.top - dragOffsetY;
+    redrawCanvas();
+});
+
+canvas.addEventListener('mouseup', () => {
+    isDragging = false;
+    selectedText = null;
+});
   
 // this draws pen strokes
 function drawStroke(stroke) {
