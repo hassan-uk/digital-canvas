@@ -130,11 +130,41 @@ function render() {
     // if (obj.type === "image") drawImage(obj);
 }
 
+// Text formatting state
+let textAlign = "left";
+let isBold = false;
+let isItalic = false;
+
  function addText(){
-    ctx.font = "20px Arial";
-    ctx.fillStyle = "black";
-    ctx.fillText("Hello World", 50, 50);
+    const font = document.getElementById("fontFamily").value;
+    const size = document.getElementById("fontSize").value;
+    const userText = prompt("Enter your text:");
+
+    if (userText) {
+      document.fonts.ready.then(() => {
+        const style = `${isItalic ? "italic " : ""}${isBold ? "bold " : ""}${size}px ${font}`;
+        ctx.font = '${style}${size}px ${font}';
+       //set fill colour
+        ctx.fillStyle = document.getElementById("colorPicker").value;
+        //Set Alignment
+        ctx.textAlign = textAlign;
+        //Draw text
+        ctx.fillText(userText, canvas.width / 2, canvas.height / 2);
+
+        if (isUnderline) {
+          const textWidth = ctx.measureText(userText).width;
+          ctx.beginPath();
+          ctx.moveTo(canvas.width / 2 - textWidth / 2, canvas.height / 2 + size / 2);
+          ctx.lineTo(canvas.width / 2 + textWidth / 2, canvas.height / 2 + size / 2);
+          ctx.strokeStyle = document.getElementById("colorPicker").value;
+          ctx.lineWidth = size / 10;
+          ctx.stroke();
+        }
+
+ })
+}
  }
+
   
 // this draws pen strokes
 function drawStroke(stroke) {

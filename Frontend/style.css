@@ -83,6 +83,93 @@ h1 {
   background-color: #893b3b;
 }
 
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.dropdown:hover .dropdown-menu {
+  display: block;
+}
+.dropdown-menu label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14px;
+  color: #333;
+  margin-top: 8px;
+  margin-bottom: 3px;
+}
+
+.dropdown-menu select, .dropdown-menu input {
+  width: 100%;
+  padding: 5px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-family:'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+.align-buttons {
+  display: flex;
+  gap: 10px;
+  Margin: 10px 0;
+}
+
+align-buttons button, .format-buttons button {
+  width: 40px;
+  height: 40px;
+  background-color: #5a3f3f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+  display:flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.align-buttons button:hover, .format-buttons button:hover {
+  background-color: #a46d6d;
+  transform: translateY(-2px);
+}
+
+.align-buttons button.active, .format-buttons button.active {
+  background-color: #893b3b;
+}
+
+.dropdown-menu #insertTextBtn {
+  width: 100%;
+  height: 35px;
+  margin-top:10px;
+  background-color: #5a3f3f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+.dropdown-menu #insertTextBtn:hover {
+  background-color: #a46d6d;
+  transform: translateY(-2px);
+}
+
 canvas {
   background: white;
   border: 2px solid black;
