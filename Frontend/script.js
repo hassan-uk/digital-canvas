@@ -123,6 +123,10 @@ function render() {
     }
 
   }
+  
+  // Draw text objects
+  redrawCanvas();
+  
     // future refrence for rosette, nevile and victoria
     //just uncomment the bottom lines based on your given task
     
@@ -144,7 +148,7 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 
 // When "Add Text" is clicked, enable text placement mode
-document.getElementById('insertTextBtn').addEventListener('click', () => {
+addTextBtn.addEventListener('click', () => {
     isAddingText = true;
     canvas.style.cursor = 'text';
 });
@@ -199,6 +203,18 @@ canvas.addEventListener('click', (e) => {
     });
 
     input.addEventListener('blur', confirmText);
+
+    // Check if clicked on a text object
+    textObjects.forEach(obj => {
+        pen.font = obj.font;
+        const width = pen.measureText(obj.text).width;
+        if (x >= obj.x && x <= obj.x + width && y >= obj.y - 20 && y <= obj.y + 5) {
+            selectedText = obj;
+            isDragging = true;
+            dragOffsetX = x - obj.x;
+            dragOffsetY = y - obj.y;
+        }
+    });
 });
 
 // Build font string from current settings
@@ -210,39 +226,25 @@ function getFontString() {
 
 // Redraw everything on canvas
 function redrawCanvas() {
-    
-
     // Then draw all text objects
     textObjects.forEach(obj => {
-        ctx.font = obj.font;
-        ctx.fillStyle = obj.color;
-        ctx.textAlign = obj.align;
-        ctx.fillText(obj.text, obj.x, obj.y);
+        pen.font = obj.font;
+        pen.fillStyle = obj.color;
+        pen.textAlign = obj.align;
+        pen.fillText(obj.text, obj.x, obj.y);
 
         // Underline
         if (obj.underline) {
-            const width = ctx.measureText(obj.text).width;
-            ctx.beginPath();
-            ctx.moveTo(obj.x, obj.y + 3);
-            ctx.lineTo(obj.x + width, obj.y + 3);
-            ctx.strokeStyle = obj.color;
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            const width = pen.measureText(obj.text).width;
+            pen.beginPath();
+            pen.moveTo(obj.x, obj.y + 3);
+            pen.lineTo(obj.x + width, obj.y + 3);
+            pen.strokeStyle = obj.color;
+            pen.lineWidth = 1;
+            pen.stroke();
         }
     });
 }
-
-    // Check if clicked on a text object
-    textObjects.forEach(obj => {
-        ctx.font = obj.font;
-        const width = ctx.measureText(obj.text).width;
-        if (x >= obj.x && x <= obj.x + width && y >= obj.y - 20 && y <= obj.y + 5) {
-            selectedText = obj;
-            isDragging = true;
-            dragOffsetX = x - obj.x;
-            dragOffsetY = y - obj.y;
-        }
-    });
 
   
 // this draws pen strokes
