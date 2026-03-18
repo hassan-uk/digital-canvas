@@ -166,32 +166,81 @@ document.addEventListener('click', (e) => {
 document.getElementById('boldBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     isBold = !isBold;
+    // Apply to selected text if one exists
+    if (selectedText) {
+        selectedText.font = getFontString();
+        render();
+    }
+    updateButtonStates();
 });
 
 document.getElementById('italicBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     isItalic = !isItalic;
+    // Apply to selected text if one exists
+    if (selectedText) {
+        selectedText.font = getFontString();
+        render();
+    }
+    updateButtonStates();
 });
 
 document.getElementById('underlineBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     isUnderline = !isUnderline;
+    // Apply to selected text if one exists
+    if (selectedText) {
+        selectedText.underline = isUnderline;
+        render();
+    }
+    updateButtonStates();
 });
 
 document.getElementById('alignLeftBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     textAlign = 'left';
+    // Apply to selected text if one exists
+    if (selectedText) {
+        selectedText.align = textAlign;
+        render();
+    }
+    updateButtonStates();
 });
 
 document.getElementById('alignCenterBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     textAlign = 'center';
+    // Apply to selected text if one exists
+    if (selectedText) {
+        selectedText.align = textAlign;
+        render();
+    }
+    updateButtonStates();
 });
 
 document.getElementById('alignRightBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     textAlign = 'right';
+    // Apply to selected text if one exists
+    if (selectedText) {
+        selectedText.align = textAlign;
+        render();
+    }
+    updateButtonStates();
 });
+
+// Update button visual states based on current formatting
+function updateButtonStates() {
+    // Update alignment buttons
+    document.getElementById('alignLeftBtn').style.backgroundColor = textAlign === 'left' ? '#6d4d4d' : '';
+    document.getElementById('alignCenterBtn').style.backgroundColor = textAlign === 'center' ? '#6d4d4d' : '';
+    document.getElementById('alignRightBtn').style.backgroundColor = textAlign === 'right' ? '#6d4d4d' : '';
+    
+    // Update formatting buttons
+    document.getElementById('boldBtn').style.backgroundColor = isBold ? '#6d4d4d' : '';
+    document.getElementById('italicBtn').style.backgroundColor = isItalic ? '#6d4d4d' : '';
+    document.getElementById('underlineBtn').style.backgroundColor = isUnderline ? '#6d4d4d' : '';
+}
 
 // Helper function to find text at coordinates
 function getTextAtPosition(x, y) {
@@ -216,6 +265,13 @@ canvas.addEventListener('click', (e) => {
     const clickedText = getTextAtPosition(x, y);
     if (clickedText) {
         selectedText = clickedText;
+        // Sync formatting variables with selected text
+        textAlign = clickedText.align || 'left';
+        isUnderline = clickedText.underline || false;
+        // Extract bold and italic from font string
+        isBold = clickedText.font.includes('bold');
+        isItalic = clickedText.font.includes('italic');
+        updateButtonStates();
         render();
         return;
     }
@@ -328,14 +384,6 @@ function createTextInput(x, y, editIndex) {
             e.preventDefault();
             e.stopPropagation();
             confirmText();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            confirmed = true;
-            if (document.body.contains(input)) {
-                document.body.removeChild(input);
-            }
-            render();
-            canvas.style.cursor = 'crosshair';
         }
     });
 
