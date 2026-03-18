@@ -13,6 +13,7 @@ import { state } from "./state.js";
 // Canvas setup
 const canvas = document.getElementById("canvas");
 const pen = canvas.getContext("2d");
+const ctx = canvas.getContext("2d");
 
 // UI elements
 const colorPicker = document.getElementById("colorPicker");
@@ -125,7 +126,9 @@ function render() {
 }
 
  function addText(){
-  
+    ctx.font = "20px Arial";
+    ctx.fillStyle = "black";
+    ctx.fillText("Hello World", 50, 50);
  }
   
 // this draws pen strokes
