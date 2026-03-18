@@ -142,34 +142,54 @@ let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
-// When "Text" button is clicked, enable text placement mode
-document.getElementById('addTextBtn').addEventListener('click', () => {
-    isAddingText = true;
-    canvas.style.cursor = 'text';
+// When "Text" button is clicked, toggle dropdown menu
+const addTextBtn = document.getElementById('addTextBtn');
+const dropdownMenu = addTextBtn.nextElementSibling;
+
+addTextBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdownMenu.classList.toggle('open');
+    isAddingText = !isAddingText;
+    canvas.style.cursor = isAddingText ? 'text' : 'crosshair';
+});
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown')) {
+        dropdownMenu.classList.remove('open');
+        isAddingText = false;
+        canvas.style.cursor = 'crosshair';
+    }
 });
 
 // Text formatting button listeners
-document.getElementById('boldBtn').addEventListener('click', () => {
+document.getElementById('boldBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
     isBold = !isBold;
 });
 
-document.getElementById('italicBtn').addEventListener('click', () => {
+document.getElementById('italicBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
     isItalic = !isItalic;
 });
 
-document.getElementById('underlineBtn').addEventListener('click', () => {
+document.getElementById('underlineBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
     isUnderline = !isUnderline;
 });
 
-document.getElementById('alignLeftBtn').addEventListener('click', () => {
+document.getElementById('alignLeftBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
     textAlign = 'left';
 });
 
-document.getElementById('alignCenterBtn').addEventListener('click', () => {
+document.getElementById('alignCenterBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
     textAlign = 'center';
 });
 
-document.getElementById('alignRightBtn').addEventListener('click', () => {
+document.getElementById('alignRightBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
     textAlign = 'right';
 });
 

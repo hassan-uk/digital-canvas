@@ -98,8 +98,10 @@ h1 {
   border-radius: 6px;
   padding: 10px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
 }
-.dropdown:hover .dropdown-menu {
+
+.dropdown-menu.open {
   display: block;
 }
 .dropdown-menu label {
