@@ -148,13 +148,58 @@ document.getElementById('insertTextBtn').addEventListener('click', () => {
     canvas.style.cursor = 'text';
 });
 
-// Click on canvas to place text input
-canvas.addEventListener('click', (e) => {
-    if (!isAddingText) return;
+// Text formatting button listeners
+document.getElementById('boldBtn').addEventListener('click', () => {
+    isBold = !isBold;
+});
 
+document.getElementById('italicBtn').addEventListener('click', () => {
+    isItalic = !isItalic;
+});
+
+document.getElementById('underlineBtn').addEventListener('click', () => {
+    isUnderline = !isUnderline;
+});
+
+document.getElementById('alignLeftBtn').addEventListener('click', () => {
+    textAlign = 'left';
+});
+
+document.getElementById('alignCenterBtn').addEventListener('click', () => {
+    textAlign = 'center';
+});
+
+document.getElementById('alignRightBtn').addEventListener('click', () => {
+    textAlign = 'right';
+});
+
+// Click on canvas to place text input or select text
+canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    // First check if clicking on existing text
+    let clickedText = null;
+    for (let i = textObjects.length - 1; i >= 0; i--) {
+        const obj = textObjects[i];
+        pen.font = obj.font;
+        const width = pen.measureText(obj.text).width;
+        if (x >= obj.x && x <= obj.x + width && y >= obj.y - 20 && y <= obj.y + 5) {
+            clickedText = obj;
+            break;
+        }
+    }
+
+    // If clicked on text, select it
+    if (clickedText) {
+        selectedText = clickedText;
+        render();
+        return;
+    }
+
+    // If in text placement mode, create new text
+    if (!isAddingText) return;
 
     // Create an input box on top of the canvas
     const input = document.createElement('input');
@@ -186,6 +231,7 @@ canvas.addEventListener('click', (e) => {
                 align: textAlign,
                 underline: isUnderline
             });
+            selectedText = null;
             render();
         }
         document.body.removeChild(input);
@@ -198,18 +244,6 @@ canvas.addEventListener('click', (e) => {
     });
 
     input.addEventListener('blur', confirmText);
-
-    // Check if clicked on a text object
-    textObjects.forEach(obj => {
-        pen.font = obj.font;
-        const width = pen.measureText(obj.text).width;
-        if (x >= obj.x && x <= obj.x + width && y >= obj.y - 20 && y <= obj.y + 5) {
-            selectedText = obj;
-            isDragging = true;
-            dragOffsetX = x - obj.x;
-            dragOffsetY = y - obj.y;
-        }
-    });
 });
 
 // Build font string from current settings
@@ -237,6 +271,14 @@ function redrawCanvas() {
             pen.strokeStyle = obj.color;
             pen.lineWidth = 1;
             pen.stroke();
+        }
+
+        // Selection highlight
+        if (obj === selectedText) {
+            const width = pen.measureText(obj.text).width;
+            pen.strokeStyle = 'blue';
+            pen.lineWidth = 2;
+            pen.strokeRect(obj.x - 2, obj.y - 20, width + 4, 25);
         }
     });
 }
@@ -516,6 +558,12 @@ function deleteSelected() {
     o => o.id !== state.selectedId
   );
   state.selectedId = null;
+
+  // Also delete selected text
+  if (selectedText) {
+    textObjects = textObjects.filter(obj => obj !== selectedText);
+    selectedText = null;
+  }
 
   render();
 }
