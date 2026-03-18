@@ -33,11 +33,6 @@ const fillToggle = document.getElementById("fillToggle");
 let dragging = false;
 let dragStart = { x: 0, y: 0 };
 
-// Text button
-
-const addTextBtn = document.getElementById("addTextBtn");
-addTextBtn.addEventListener("click", addText);
-
 // Set starting brush settings
 state.brush.color = colorPicker.value;
 state.brush.size = Number(brushSize.value);
@@ -148,7 +143,7 @@ let dragOffsetX = 0;
 let dragOffsetY = 0;
 
 // When "Add Text" is clicked, enable text placement mode
-addTextBtn.addEventListener('click', () => {
+document.getElementById('insertTextBtn').addEventListener('click', () => {
     isAddingText = true;
     canvas.style.cursor = 'text';
 });
@@ -191,7 +186,7 @@ canvas.addEventListener('click', (e) => {
                 align: textAlign,
                 underline: isUnderline
             });
-            redrawCanvas();
+            render();
         }
         document.body.removeChild(input);
         isAddingText = false;
