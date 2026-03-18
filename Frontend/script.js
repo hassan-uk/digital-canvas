@@ -193,6 +193,19 @@ document.getElementById('alignRightBtn').addEventListener('click', (e) => {
     textAlign = 'right';
 });
 
+// Helper function to find text at coordinates
+function getTextAtPosition(x, y) {
+    for (let i = textObjects.length - 1; i >= 0; i--) {
+        const obj = textObjects[i];
+        pen.font = obj.font;
+        const width = pen.measureText(obj.text).width;
+        if (x >= obj.x && x <= obj.x + width && y >= obj.y - 20 && y <= obj.y + 5) {
+            return obj;
+        }
+    }
+    return null;
+}
+
 // Click on canvas to place text input or select text
 canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -200,18 +213,7 @@ canvas.addEventListener('click', (e) => {
     const y = e.clientY - rect.top;
 
     // First check if clicking on existing text
-    let clickedText = null;
-    for (let i = textObjects.length - 1; i >= 0; i--) {
-        const obj = textObjects[i];
-        pen.font = obj.font;
-        const width = pen.measureText(obj.text).width;
-        if (x >= obj.x && x <= obj.x + width && y >= obj.y - 20 && y <= obj.y + 5) {
-            clickedText = obj;
-            break;
-        }
-    }
-
-    // If clicked on text, select it
+    const clickedText = getTextAtPosition(x, y);
     if (clickedText) {
         selectedText = clickedText;
         render();
@@ -221,10 +223,36 @@ canvas.addEventListener('click', (e) => {
     // If in text placement mode, create new text
     if (!isAddingText) return;
 
-    // Create an input box on top of the canvas
+    createTextInput(x, y, null);
+});
+
+// Double-click on text to edit it
+canvas.addEventListener('dblclick', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const clickedText = getTextAtPosition(x, y);
+    if (clickedText) {
+        e.preventDefault();
+        // Find the index of the clicked text
+        const index = textObjects.indexOf(clickedText);
+        createTextInput(clickedText.x, clickedText.y, index);
+    }
+});
+
+// Create an editable text input
+function createTextInput(x, y, editIndex) {
+    const rect = canvas.getBoundingClientRect();
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = 'Type here...';
+    
+    // If editing existing text, populate the input
+    if (editIndex !== null) {
+        input.value = textObjects[editIndex].text;
+    }
+    
     input.style.position = 'absolute';
     input.style.left = `${rect.left + x}px`;
     input.style.top = `${rect.top + y - 10}px`;
@@ -237,24 +265,37 @@ canvas.addEventListener('click', (e) => {
     input.style.minWidth = '100px';
     document.body.appendChild(input);
     input.focus();
+    input.select();
 
     // When user presses Enter or clicks away, confirm the text
     function confirmText() {
         const value = input.value.trim();
         if (value) {
-            textObjects.push({
-                text: value,
-                x,
-                y,
-                font: getFontString(),
-                color: document.getElementById('colorPicker').value,
-                align: textAlign,
-                underline: isUnderline
-            });
+            if (editIndex !== null) {
+                // Update existing text
+                textObjects[editIndex].text = value;
+                textObjects[editIndex].font = getFontString();
+                textObjects[editIndex].color = document.getElementById('colorPicker').value;
+                textObjects[editIndex].align = textAlign;
+                textObjects[editIndex].underline = isUnderline;
+            } else {
+                // Create new text
+                textObjects.push({
+                    text: value,
+                    x,
+                    y,
+                    font: getFontString(),
+                    color: document.getElementById('colorPicker').value,
+                    align: textAlign,
+                    underline: isUnderline
+                });
+            }
             selectedText = null;
             render();
         }
-        document.body.removeChild(input);
+        if (document.body.contains(input)) {
+            document.body.removeChild(input);
+        }
         isAddingText = false;
         canvas.style.cursor = 'crosshair';
     }
@@ -264,7 +305,7 @@ canvas.addEventListener('click', (e) => {
     });
 
     input.addEventListener('blur', confirmText);
-});
+}
 
 // Build font string from current settings
 function getFontString() {
@@ -572,18 +613,21 @@ clearButton.addEventListener("click", () => {
 });
 
 function deleteSelected() {
+  // Delete selected text first
+  if (selectedText) {
+    textObjects = textObjects.filter(obj => obj !== selectedText);
+    selectedText = null;
+    render();
+    return;
+  }
+
+  // Otherwise delete selected shape/stroke
   if (!state.selectedId) return;
 
   state.objects = state.objects.filter(
     o => o.id !== state.selectedId
   );
   state.selectedId = null;
-
-  // Also delete selected text
-  if (selectedText) {
-    textObjects = textObjects.filter(obj => obj !== selectedText);
-    selectedText = null;
-  }
 
   render();
 }
