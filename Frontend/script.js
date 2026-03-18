@@ -142,8 +142,8 @@ let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
-// When "Add Text" is clicked, enable text placement mode
-document.getElementById('insertTextBtn').addEventListener('click', () => {
+// When "Text" button is clicked, enable text placement mode
+document.getElementById('addTextBtn').addEventListener('click', () => {
     isAddingText = true;
     canvas.style.cursor = 'text';
 });
