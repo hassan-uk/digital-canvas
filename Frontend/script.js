@@ -229,6 +229,22 @@ document.getElementById('alignRightBtn').addEventListener('click', (e) => {
     updateButtonStates();
 });
 
+// Font family selector
+document.getElementById('fontFamily').addEventListener('change', (e) => {
+    if (selectedText) {
+        selectedText.font = getFontString();
+        render();
+    }
+});
+
+// Font size selector
+document.getElementById('fontSize').addEventListener('change', (e) => {
+    if (selectedText) {
+        selectedText.font = getFontString();
+        render();
+    }
+});
+
 // Update button visual states based on current formatting
 function updateButtonStates() {
     // Update alignment buttons
@@ -271,6 +287,15 @@ canvas.addEventListener('click', (e) => {
         // Extract bold and italic from font string
         isBold = clickedText.font.includes('bold');
         isItalic = clickedText.font.includes('italic');
+        
+        // Extract and sync font family and size from font string
+        const fontMatch = clickedText.font.match(/(\d+)px\s+['"']?([^'"']+)['"']?/);
+        if (fontMatch) {
+            document.getElementById('fontSize').value = fontMatch[1];
+            const fontFamily = fontMatch[2].trim().replace(/['"']/g, '');
+            document.getElementById('fontFamily').value = fontFamily;
+        }
+        
         updateButtonStates();
         render();
         return;
