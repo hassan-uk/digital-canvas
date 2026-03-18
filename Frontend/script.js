@@ -210,8 +210,7 @@ function getFontString() {
 
 // Redraw everything on canvas
 function redrawCanvas() {
-    // Redraw your existing shapes first
-    // (your team's redraw function goes here)
+    
 
     // Then draw all text objects
     textObjects.forEach(obj => {
@@ -233,12 +232,6 @@ function redrawCanvas() {
     });
 }
 
-// Drag text
-canvas.addEventListener('mousedown', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
     // Check if clicked on a text object
     textObjects.forEach(obj => {
         ctx.font = obj.font;
@@ -250,20 +243,7 @@ canvas.addEventListener('mousedown', (e) => {
             dragOffsetY = y - obj.y;
         }
     });
-});
 
-canvas.addEventListener('mousemove', (e) => {
-    if (!isDragging || !selectedText) return;
-    const rect = canvas.getBoundingClientRect();
-    selectedText.x = e.clientX - rect.left - dragOffsetX;
-    selectedText.y = e.clientY - rect.top - dragOffsetY;
-    redrawCanvas();
-});
-
-canvas.addEventListener('mouseup', () => {
-    isDragging = false;
-    selectedText = null;
-});
   
 // this draws pen strokes
 function drawStroke(stroke) {
