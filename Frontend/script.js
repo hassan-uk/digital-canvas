@@ -13,7 +13,7 @@ import { state } from "./state.js";
 // Canvas setup
 const canvas = document.getElementById("canvas");
 const pen = canvas.getContext("2d");
-const ctx = canvas.getContext("2d");
+
 
 // UI elements
 const colorPicker = document.getElementById("colorPicker");
@@ -32,6 +32,11 @@ const fillToggle = document.getElementById("fillToggle");
 
 let dragging = false;
 let dragStart = { x: 0, y: 0 };
+
+// Text button
+
+const addTextBtn = document.getElementById("addTextBtn");
+addTextBtn.addEventListener("click", addText);
 
 // Set starting brush settings
 state.brush.color = colorPicker.value;
