@@ -198,7 +198,7 @@ document.getElementById('underlineBtn').addEventListener('click', (e) => {
 
 document.getElementById('alignLeftBtn').addEventListener('click', (e) => {
     e.stopPropagation();
-    textAlign = 'left';
+    textAlign = 'right';
     // Apply to selected text if one exists
     if (selectedText) {
         selectedText.align = textAlign;
@@ -220,7 +220,7 @@ document.getElementById('alignCenterBtn').addEventListener('click', (e) => {
 
 document.getElementById('alignRightBtn').addEventListener('click', (e) => {
     e.stopPropagation();
-    textAlign = 'right';
+    textAlign = 'left';
     // Apply to selected text if one exists
     if (selectedText) {
         selectedText.align = textAlign;
