@@ -32,6 +32,9 @@ const fillToggle = document.getElementById("fillToggle");
 let dragging = false;
 let dragStart = { x: 0, y: 0 };
 
+let resizing = false;
+let resizeHandle = null;
+
 // Set starting brush settings
 state.brush.color = colorPicker.value;
 state.brush.size = Number(brushSize.value);
@@ -276,11 +279,72 @@ function drawSelection(obj) {
     (b.maxX - b.minX) + 10,
     (b.maxY - b.minY) + 10
   );
+
+  const size = 8;
+
+  const corners = [
+    { x: b.minX, y: b.minY }, // top left
+    { x: b.maxX, y: b.minY }, // top right
+    { x: b.minX, y: b.maxY }, // bottom left
+    { x: b.maxX, y: b.maxY }  // bottom right
+  ];
+
+  pen.fillStyle = "white";
+  pen.strokeStyle = "blue";
+
+  corners.forEach(c => {
+    pen.beginPath();
+    pen.rect(c.x - size/2, c.y - size/2, size, size);
+    pen.fill();
+    pen.stroke();
+  });
+}
+
+// if clicked on corner
+function getResizeHandle(obj, x, y) {
+  const b = getBounds(obj);
+  const size = 10;
+
+  const handles = {
+    tl: { x: b.minX, y: b.minY },
+    tr: { x: b.maxX, y: b.minY },
+    bl: { x: b.minX, y: b.maxY },
+    br: { x: b.maxX, y: b.maxY }
+  };
+
+  for (const key in handles) {
+    const h = handles[key];
+
+    if (
+      x >= h.x - size &&
+      x <= h.x + size &&
+      y >= h.y - size &&
+      y <= h.y + size
+    ) {
+      return key;
+    }
+  }
+
+  return null;
 }
 
 // Mouse drawing
 canvas.addEventListener("mousedown", (event) => {
   const pos = getMousePosition(event);
+
+  const selectedObj = state.objects.find(o => o.id === state.selectedId);
+
+  if (selectedObj) {
+    const handle = getResizeHandle(selectedObj, pos.x, pos.y);
+
+    if (handle) {
+      resizing = true;
+      resizeHandle = handle;
+      dragStart = pos;
+      return;
+    }
+  }
+
   const clicked = getObjectAt(pos.x, pos.y);
 
   // if user clicked an existing object
@@ -332,6 +396,51 @@ canvas.addEventListener("mousemove", (event) => {
     return;
   }
 
+  if (resizing && state.selectedId) {
+    const obj = state.objects.find(o => o.id === state.selectedId);
+
+    const dx = pos.x - dragStart.x;
+    const dy = pos.y - dragStart.y;
+
+    if (obj.type === "shape") {
+      if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+        if (resizeHandle === "br") {
+          obj.width += dx;
+          obj.height += dy;
+        }
+        if (resizeHandle === "tl") {
+          obj.x += dx;
+          obj.y += dy;
+          obj.width -= dx;
+          obj.height -= dy;
+        }
+        if (resizeHandle === "tr") {
+          obj.y += dy;
+          obj.width += dx;
+          obj.height -= dy;
+        }
+        if (resizeHandle === "bl") {
+          obj.x += dx;
+          obj.width -= dx;
+          obj.height += dy;
+        }
+      }
+
+      if (obj.shapeType === "circle") {
+        obj.radius += dx * 0.5;
+      }
+
+      if (obj.shapeType === "line") {
+        obj.x2 += dx;
+        obj.y2 += dy;
+      }
+  }
+
+  dragStart = pos;
+  render();
+  return;
+}
+
   // DRAGGING OBJECT
   if (dragging && state.selectedId) {
 
@@ -372,6 +481,9 @@ window.addEventListener("mouseup", () => {
   state.drawing.isDrawing = false;
   state.drawing.activeStrokeId = null;
   dragging = false;
+
+  resizing = false;
+  resizeHandle = null;
 });
 
 // UI controls
