@@ -14,7 +14,8 @@
 export const state = {
   brush: {
     color: "#000000",
-    size: 5
+    size: 5,
+    fill: false
   },
 
   /*
@@ -29,6 +30,10 @@ export const state = {
      images: { type: "image", src, x, y, w, h }
   */
   objects: [],
+
+  selectedId: null,
+
+  mode: "draw",
 
   // Used while the user is currently drawing
   drawing: {
