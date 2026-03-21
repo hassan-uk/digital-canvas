@@ -28,7 +28,6 @@ const clearButton = document.getElementById("clearButton");
 const saveProjectBtn = document.getElementById("saveProjectBtn");
 const loadProjectInput = document.getElementById("loadProjectInput");
 const deleteBtn = document.getElementById("deleteBtn");
-const selectBtn = document.getElementById("selectBtn");
 
 // Shape buttons
 const addRectBtn = document.getElementById("addRectBtn");
@@ -42,11 +41,18 @@ let erasing = false;
 let dragging = false;
 let dragStart = { x: 0, y: 0 };
 
+let resizing = false;
+let resizeHandle = null;
+
+let rotating = false;
+let rotationOffset = 0;
+
 // Set starting brush settings
 state.brush.color = (colorPicker.value);
 state.brush.size = Number(brushSize.value);
 state.brush.shape = "round";
 state.brush.opacity = 1;
+state.currentTool = "paint";
 
 // Get mouse position inside canvas
 function getMousePosition(event) {
@@ -382,7 +388,7 @@ function drawShape(shapeType) {
   state.objects.push(shape);
   state.selectedId = shape.id;
   state.mode = "select";
-  updateSelectButton();
+  updateToolButtons();
   render();
 }
 
@@ -492,13 +498,58 @@ function getRotateHandle(obj, x, y) {
   return false;
 }
 
-function updateSelectButton() {
-  if (state.mode === "select" || state.selectedId) {
+function updateToolButtons() {
+  paintBtn.classList.remove("activeTool");
+  highlightBtn.classList.remove("activeTool");
+  eraseBtn.classList.remove("activeTool");
+  selectBtn.classList.remove("activeTool");
+
+  if (state.mode === "select") {
     selectBtn.classList.add("activeTool");
   } else {
-    selectBtn.classList.remove("activeTool");
+    if (state.currentTool === "paint") {
+      paintBtn.classList.add("activeTool");
+    }
+
+    if (state.currentTool === "highlight") {
+      highlightBtn.classList.add("activeTool");
+    }
+
+    if (state.currentTool === "erase") {
+      eraseBtn.classList.add("activeTool");
+    }
   }
 }
+
+paintBtn.addEventListener("click", () => {
+  state.mode = "draw";
+  state.currentTool = "paint";
+  state.selectedId = null;
+  state.brush.shape = "round";
+  state.brush.opacity = 1;
+  updateToolButtons();
+  render();
+});
+
+highlightBtn.addEventListener("click", () => {
+  state.mode = "draw";
+  state.currentTool = "highlight";
+  state.selectedId = null;
+  state.brush.shape = "round";
+  state.brush.opacity = 0.25;
+  updateToolButtons();
+  render();
+});
+
+eraseBtn.addEventListener("click", () => {
+  state.mode = "draw";
+  state.currentTool = "erase";
+  state.selectedId = null;
+  state.brush.shape = "round";
+  state.brush.opacity = 1;
+  updateToolButtons();
+  render();
+});
 
 selectBtn.addEventListener("click", () => {
   if (state.mode === "select") {
@@ -508,7 +559,7 @@ selectBtn.addEventListener("click", () => {
     state.mode = "select";
   }
 
-  updateSelectButton();
+  updateToolButtons();
   render();
 });
 
@@ -547,18 +598,17 @@ canvas.addEventListener("mousedown", (event) => {
 
     const clicked = getObjectAt(pos.x, pos.y);
 
-  // if user clicked an existing object
-  if (clicked) {
-    state.selectedId = clicked.id;
-    dragging = true;
-    dragStart = pos;
+    // if user clicked an existing object
+    if (clicked) {
+      state.selectedId = clicked.id;
+      dragging = true;
+      dragStart = pos;
 
       render();
       return;
     }
 
     state.selectedId = null;
-    updateSelectButton();
     render();
     return;
   }
@@ -567,39 +617,47 @@ canvas.addEventListener("mousedown", (event) => {
 
   state.selectedId = null;
 
-    state.drawing.isDrawing = true;
+  state.drawing.isDrawing = true;
 
-    const strokeId = createId();
+  const strokeId = createId();
 
-    state.objects.push({
-      id: strokeId,
-      type: "stroke",
-      color: state.brush.color,
-      size: state.brush.size,
-      shape: state.brush.shape,
-      opacity: state.brush.opacity,
-      points: [pos]
-    });
+  let strokeColor = state.brush.color;
+  let strokeOpacity = state.brush.opacity;
+  let strokeSize = state.brush.size;
 
-    state.drawing.activeStrokeId = strokeId;
+  if (state.currentTool === "highlight") {
+    strokeOpacity = 0.25;
+    strokeSize = state.brush.size + 8;
   }
 
-  // ERASING
-  if (mode == "erase") {
+  if (state.currentTool === "erase") {
+    strokeColor = "#ffffff";
+    strokeOpacity = 1;
+    strokeSize = state.brush.size + 10;
     erasing = true;
   }
+
+  state.objects.push({
+    id: strokeId,
+    type: "stroke",
+    color: strokeColor,
+    size: strokeSize,
+    shape: state.brush.shape,
+    opacity: strokeOpacity,
+    points: [pos]
+  });
+
+  state.drawing.activeStrokeId = strokeId;
 
   render();
 });
 
 canvas.addEventListener("mousemove", (event) => {
-
   const pos = getMousePosition(event);
 
   if (state.mode !== "select") {
     // DRAWING (original behaviour)
     if (state.drawing.isDrawing) {
-
       const activeStroke = state.objects.find(
         obj => obj.id === state.drawing.activeStrokeId
       );
@@ -608,16 +666,81 @@ canvas.addEventListener("mousemove", (event) => {
 
       activeStroke.points.push(pos);
 
+      render();
+      return;
+    }
+
+    return;
+  }
+
+  if (rotating && state.selectedId) {
+    const obj = state.objects.find(o => o.id === state.selectedId);
+
+    if (obj && obj.type === "shape") {
+      const center = getObjectCenter(obj);
+      const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+      obj.rotation = mouseAngle - rotationOffset;
+
+      render();
+    }
+
+    return;
+  }
+
+  if (resizing && state.selectedId) {
+    const obj = state.objects.find(o => o.id === state.selectedId);
+
+    if (!obj) return;
+
+    const dx = pos.x - dragStart.x;
+    const dy = pos.y - dragStart.y;
+
+    if (obj.type === "shape") {
+      if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+        if (resizeHandle === "br") {
+          obj.width += dx;
+          obj.height += dy;
+        }
+        if (resizeHandle === "tl") {
+          obj.x += dx;
+          obj.y += dy;
+          obj.width -= dx;
+          obj.height -= dy;
+        }
+        if (resizeHandle === "tr") {
+          obj.y += dy;
+          obj.width += dx;
+          obj.height -= dy;
+        }
+        if (resizeHandle === "bl") {
+          obj.x += dx;
+          obj.width -= dx;
+          obj.height += dy;
+        }
+      }
+
+      if (obj.shapeType === "circle") {
+        obj.radius += dx * 0.5;
+      }
+
+      if (obj.shapeType === "line") {
+        obj.x2 += dx;
+        obj.y2 += dy;
+      }
+    }
+
+    dragStart = pos;
     render();
     return;
   }
 
   // DRAGGING OBJECT
   if (dragging && state.selectedId) {
-
     const obj = state.objects.find(
       o => o.id === state.selectedId
     );
+
+    if (!obj) return;
 
     const dx = pos.x - dragStart.x;
     const dy = pos.y - dragStart.y;
@@ -651,6 +774,10 @@ window.addEventListener("mouseup", () => {
   state.drawing.isDrawing = false;
   state.drawing.activeStrokeId = null;
   dragging = false;
+  resizing = false;
+  resizeHandle = null;
+  rotating = false;
+  erasing = false;
 });
 
 
@@ -669,7 +796,7 @@ clearButton.addEventListener("click", () => {
   state.drawing.activeStrokeId = null;
   state.selectedId = null;
 
-  updateSelectButton();
+  updateToolButtons();
   render();
 });
 
@@ -681,7 +808,7 @@ function deleteSelected() {
   );
   state.selectedId = null;
 
-  updateSelectButton();
+  updateToolButtons();
   render();
 }
 
@@ -747,6 +874,7 @@ loadProjectInput.addEventListener("change", async (e) => {
   state.objects = loadedData.objects;
   state.selectedId = loadedData.selectedId ?? null;
   state.mode = loadedData.mode ?? "draw";
+  state.currentTool = loadedData.currentTool ?? "paint";
 
   state.drawing.isDrawing = false;
   state.drawing.activeStrokeId = null;
@@ -755,11 +883,11 @@ loadProjectInput.addEventListener("change", async (e) => {
   brushSize.value = String(state.brush.size);
   fillToggle.checked = !!state.brush.fill;
 
-  updateSelectButton();
+  updateToolButtons();
   render();
   e.target.value = "";
 });
 
 // First render
-updateSelectButton();
+updateToolButtons();
 render();

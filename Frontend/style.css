@@ -49,6 +49,25 @@ h1 {
   transform: translateY(-2px);
 }
 
+.toolbar button.smallBtn {
+  width: 90px;
+}
+
+.toolbar button.iconBtn {
+  width: 40px;
+}
+
+.toolbar button.activeTool {
+  background-color: #893b3b;
+}
+
+.fillToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: Segoe UI, 'Helvetica', Arial, sans-serif;
+}
+
 canvas {
   background: white;
   border: 2px solid black;

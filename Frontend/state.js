@@ -15,7 +15,9 @@ export const state = {
   brush: {
     color: "#000000",
     size: 5,
-    fill: false
+    fill: false,
+    shape: "round",
+    opacity: 1
   },
 
   /*
@@ -34,6 +36,8 @@ export const state = {
   selectedId: null,
 
   mode: "draw",
+
+  currentTool: "paint",
 
   // Used while the user is currently drawing
   drawing: {
