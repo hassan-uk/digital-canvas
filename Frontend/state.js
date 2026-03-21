@@ -31,6 +31,10 @@ export const state = {
   */
   objects: [],
 
+  selectedId: null,
+
+  mode: "draw",
+
   // Used while the user is currently drawing
   drawing: {
     isDrawing: false,

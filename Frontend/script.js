@@ -21,6 +21,7 @@ const clearButton = document.getElementById("clearButton");
 const saveProjectBtn = document.getElementById("saveProjectBtn");
 const loadProjectInput = document.getElementById("loadProjectInput");
 const deleteBtn = document.getElementById("deleteBtn");
+const selectBtn = document.getElementById("selectBtn");
 
 // Shape buttons
 const addRectBtn = document.getElementById("addRectBtn");
@@ -34,6 +35,9 @@ let dragStart = { x: 0, y: 0 };
 
 let resizing = false;
 let resizeHandle = null;
+
+let rotating = false;
+let rotationOffset = 0;
 
 // Set starting brush settings
 state.brush.color = colorPicker.value;
@@ -54,6 +58,74 @@ function createId() {
   return crypto.randomUUID();
 }
 
+function getObjectCenter(obj) {
+  if (obj.type === "shape") {
+    if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+      return {
+        x: obj.x + obj.width / 2,
+        y: obj.y + obj.height / 2
+      };
+    }
+
+    if (obj.shapeType === "circle") {
+      return {
+        x: obj.x,
+        y: obj.y
+      };
+    }
+
+    if (obj.shapeType === "line") {
+      return {
+        x: (obj.x + obj.x2) / 2,
+        y: (obj.y + obj.y2) / 2
+      };
+    }
+  }
+
+  if (obj.type === "stroke") {
+    const b = getBounds(obj);
+    return {
+      x: (b.minX + b.maxX) / 2,
+      y: (b.minY + b.maxY) / 2
+    };
+  }
+
+  return { x: 0, y: 0 };
+}
+
+function rotatePoint(px, py, cx, cy, angle) {
+  const dx = px - cx;
+  const dy = py - cy;
+
+  return {
+    x: cx + dx * Math.cos(angle) - dy * Math.sin(angle),
+    y: cy + dx * Math.sin(angle) + dy * Math.cos(angle)
+  };
+}
+
+function getRotatedCorners(obj) {
+  const angle = obj.rotation || 0;
+  const center = getObjectCenter(obj);
+
+  if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+    return [
+      rotatePoint(obj.x, obj.y, center.x, center.y, angle),
+      rotatePoint(obj.x + obj.width, obj.y, center.x, center.y, angle),
+      rotatePoint(obj.x, obj.y + obj.height, center.x, center.y, angle),
+      rotatePoint(obj.x + obj.width, obj.y + obj.height, center.x, center.y, angle)
+    ];
+  }
+
+  if (obj.shapeType === "line") {
+    return [
+      rotatePoint(obj.x, obj.y, center.x, center.y, angle),
+      rotatePoint(obj.x2, obj.y2, center.x, center.y, angle)
+    ];
+  }
+
+  return [];
+}
+
 
 function getBounds(obj) {
 
@@ -71,13 +143,31 @@ function getBounds(obj) {
 
   if (obj.type === "shape") {
     if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
-      return { minX: obj.x, minY: obj.y, maxX: obj.x + obj.width, maxY: obj.y + obj.height };
+      const corners = getRotatedCorners(obj);
+      const xs = corners.map(p => p.x);
+      const ys = corners.map(p => p.y);
+
+      return {
+        minX: Math.min(...xs),
+        minY: Math.min(...ys),
+        maxX: Math.max(...xs),
+        maxY: Math.max(...ys)
+      };
     }
     if (obj.shapeType === "circle") {
       return { minX: obj.x - obj.radius, minY: obj.y - obj.radius, maxX: obj.x + obj.radius, maxY: obj.y + obj.radius };
     }
     if (obj.shapeType === "line") {
-      return { minX: Math.min(obj.x, obj.x2), minY: Math.min(obj.y, obj.y2), maxX: Math.max(obj.x, obj.x2), maxY: Math.max(obj.y, obj.y2) };
+      const points = getRotatedCorners(obj);
+      const xs = points.map(p => p.x);
+      const ys = points.map(p => p.y);
+
+      return {
+        minX: Math.min(...xs),
+        minY: Math.min(...ys),
+        maxX: Math.max(...xs),
+        maxY: Math.max(...ys)
+      };
     }
   }
 }
@@ -163,15 +253,24 @@ function drawShape(shapeType) {
       height: 80,
       color: state.brush.color,
       fill: state.brush.fill,
+      rotation: 0,
       draw: function(pen) {
+        pen.save();
         pen.strokeStyle = this.color;
+        pen.fillStyle = this.color;
+
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+
+        pen.translate(centerX, centerY);
+        pen.rotate(this.rotation || 0);
 
         if (this.fill) {
-          pen.fillStyle = this.color;
-          pen.fillRect(this.x, this.y, this.width, this.height);
+          pen.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
         }
 
-        pen.strokeRect(this.x, this.y, this.width, this.height);
+        pen.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+        pen.restore();
       }
     };
   }
@@ -186,7 +285,9 @@ function drawShape(shapeType) {
       radius: 60,
       color: state.brush.color,
       fill: state.brush.fill,
+      rotation: 0,
       draw: function(pen) {
+        pen.save();
         pen.strokeStyle = this.color;
         pen.beginPath();
         pen.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -197,6 +298,7 @@ function drawShape(shapeType) {
         }
 
         pen.stroke();
+        pen.restore();
       }
     };
   }
@@ -212,19 +314,29 @@ function drawShape(shapeType) {
       height: 100,
       color: state.brush.color,
       fill: state.brush.fill,
+      rotation: 0,
       draw: function(pen) {
+        pen.save();
         pen.strokeStyle = this.color;
+        pen.fillStyle = this.color;
+
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+
+        pen.translate(centerX, centerY);
+        pen.rotate(this.rotation || 0);
+
         pen.beginPath();
-        pen.moveTo(this.x + this.width/2, this.y);
-        pen.lineTo(this.x, this.y + this.height);
-        pen.lineTo(this.x + this.width, this.y + this.height);
+        pen.moveTo(0, -this.height / 2);
+        pen.lineTo(-this.width / 2, this.height / 2);
+        pen.lineTo(this.width / 2, this.height / 2);
         pen.closePath();
 
         if (this.fill) {
-          pen.fillStyle = this.color;
           pen.fill();
         }
         pen.stroke();
+        pen.restore();
       }
     };
   }
@@ -240,18 +352,30 @@ function drawShape(shapeType) {
       y2: canvas.height / 2,
       color: state.brush.color,
       fill: state.brush.fill,
+      rotation: 0,
       draw: function(pen) {
+        pen.save();
         pen.strokeStyle = this.color;
+
+        const centerX = (this.x + this.x2) / 2;
+        const centerY = (this.y + this.y2) / 2;
+
+        pen.translate(centerX, centerY);
+        pen.rotate(this.rotation || 0);
+
         pen.beginPath();
-        pen.moveTo(this.x, this.y);
-        pen.lineTo(this.x2, this.y2);
+        pen.moveTo(this.x - centerX, this.y - centerY);
+        pen.lineTo(this.x2 - centerX, this.y2 - centerY);
         pen.stroke();
+        pen.restore();
       }
     };
   }
 
   state.objects.push(shape);
   state.selectedId = shape.id;
+  state.mode = "select";
+  updateSelectButton();
   render();
 }
 
@@ -298,6 +422,20 @@ function drawSelection(obj) {
     pen.fill();
     pen.stroke();
   });
+
+  const rotateHandleX = (b.minX + b.maxX) / 2;
+  const rotateHandleY = b.minY - 25;
+
+  pen.beginPath();
+  pen.moveTo((b.minX + b.maxX) / 2, b.minY);
+  pen.lineTo(rotateHandleX, rotateHandleY);
+  pen.stroke();
+
+  pen.beginPath();
+  pen.arc(rotateHandleX, rotateHandleY, 6, 0, Math.PI * 2);
+  pen.fillStyle = "white";
+  pen.fill();
+  pen.stroke();
 }
 
 // if clicked on corner
@@ -328,31 +466,94 @@ function getResizeHandle(obj, x, y) {
   return null;
 }
 
+function getRotateHandle(obj, x, y) {
+  const b = getBounds(obj);
+
+  const handleX = (b.minX + b.maxX) / 2;
+  const handleY = b.minY - 25;
+  const size = 10;
+
+  if (
+    x >= handleX - size &&
+    x <= handleX + size &&
+    y >= handleY - size &&
+    y <= handleY + size
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function updateSelectButton() {
+  if (state.mode === "select" || state.selectedId) {
+    selectBtn.classList.add("activeTool");
+  } else {
+    selectBtn.classList.remove("activeTool");
+  }
+}
+
+selectBtn.addEventListener("click", () => {
+  if (state.mode === "select") {
+    state.mode = "draw";
+    state.selectedId = null;
+  } else {
+    state.mode = "select";
+  }
+
+  updateSelectButton();
+  render();
+});
+
 // Mouse drawing
 canvas.addEventListener("mousedown", (event) => {
   const pos = getMousePosition(event);
 
-  const selectedObj = state.objects.find(o => o.id === state.selectedId);
+  if (state.mode === "select") {
+    const selectedObj = state.objects.find(o => o.id === state.selectedId);
 
-  if (selectedObj) {
-    const handle = getResizeHandle(selectedObj, pos.x, pos.y);
+    if (selectedObj && selectedObj.type === "shape") {
+      const rotateClicked = getRotateHandle(selectedObj, pos.x, pos.y);
 
-    if (handle) {
-      resizing = true;
-      resizeHandle = handle;
+      if (rotateClicked) {
+        rotating = true;
+
+        const center = getObjectCenter(selectedObj);
+        const currentAngle = selectedObj.rotation || 0;
+        const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+
+        rotationOffset = mouseAngle - currentAngle;
+        return;
+      }
+    }
+
+    if (selectedObj) {
+      const handle = getResizeHandle(selectedObj, pos.x, pos.y);
+
+      if (handle) {
+        resizing = true;
+        resizeHandle = handle;
+        dragStart = pos;
+        return;
+      }
+    }
+
+    const clicked = getObjectAt(pos.x, pos.y);
+
+    // if user clicked an existing object
+    if (clicked) {
+      state.selectedId = clicked.id;
+      state.mode = "select";
+      updateSelectButton();
+      dragging = true;
       dragStart = pos;
+
+      render();
       return;
     }
-  }
 
-  const clicked = getObjectAt(pos.x, pos.y);
-
-  // if user clicked an existing object
-  if (clicked) {
-    state.selectedId = clicked.id;
-    dragging = true;
-    dragStart = pos;
-
+    state.selectedId = null;
+    updateSelectButton();
     render();
     return;
   }
@@ -360,6 +561,7 @@ canvas.addEventListener("mousedown", (event) => {
   // NORMAL DRAWING
 
   state.selectedId = null;
+  updateSelectButton();
 
   state.drawing.isDrawing = true;
 
@@ -377,22 +579,41 @@ canvas.addEventListener("mousedown", (event) => {
 
   render();
 });
+
 canvas.addEventListener("mousemove", (event) => {
 
   const pos = getMousePosition(event);
 
-  // DRAWING (original behaviour)
-  if (state.drawing.isDrawing) {
+  if (state.mode !== "select") {
+    // DRAWING (original behaviour)
+    if (state.drawing.isDrawing) {
 
-    const activeStroke = state.objects.find(
-      obj => obj.id === state.drawing.activeStrokeId
-    );
+      const activeStroke = state.objects.find(
+        obj => obj.id === state.drawing.activeStrokeId
+      );
 
-    if (!activeStroke) return;
+      if (!activeStroke) return;
 
-    activeStroke.points.push(pos);
+      activeStroke.points.push(pos);
 
-    render();
+      render();
+      return;
+    }
+
+    return;
+  }
+
+  if (rotating && state.selectedId) {
+    const obj = state.objects.find(o => o.id === state.selectedId);
+
+    if (obj && obj.type === "shape") {
+      const center = getObjectCenter(obj);
+      const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+      obj.rotation = mouseAngle - rotationOffset;
+
+      render();
+    }
+
     return;
   }
 
@@ -484,6 +705,7 @@ window.addEventListener("mouseup", () => {
 
   resizing = false;
   resizeHandle = null;
+  rotating = false;
 });
 
 // UI controls
@@ -501,6 +723,7 @@ clearButton.addEventListener("click", () => {
   state.drawing.activeStrokeId = null;
   state.selectedId = null;
 
+  updateSelectButton();
   render();
 });
 
@@ -512,6 +735,7 @@ function deleteSelected() {
   );
   state.selectedId = null;
 
+  updateSelectButton();
   render();
 }
 deleteBtn.addEventListener("click", deleteSelected);
@@ -571,16 +795,21 @@ loadProjectInput.addEventListener("change", async (e) => {
 
   state.brush = loadedData.brush ?? state.brush;
   state.objects = loadedData.objects;
+  state.selectedId = loadedData.selectedId ?? null;
+  state.mode = loadedData.mode ?? "draw";
 
   state.drawing.isDrawing = false;
   state.drawing.activeStrokeId = null;
 
   colorPicker.value = state.brush.color;
   brushSize.value = String(state.brush.size);
+  fillToggle.checked = !!state.brush.fill;
 
+  updateSelectButton();
   render();
   e.target.value = "";
 });
 
 // First render
+updateSelectButton();
 render();

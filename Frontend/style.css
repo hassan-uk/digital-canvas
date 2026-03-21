@@ -53,6 +53,10 @@ h1 {
   width: 40px;
 }
 
+.toolbar button.activeTool {
+  background-color: #893b3b;
+}
+
 .fillToggle {
   display: flex;
   justify-content: center;
