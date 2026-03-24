@@ -15,7 +15,9 @@ export const state = {
   brush: {
     color: "#000000",
     size: 5,
-    fill: false
+    fill: false,
+    shape: "round",
+    opacity: 1
   },
 
   /*
@@ -29,7 +31,21 @@ export const state = {
      text:   { type: "text", value, x, y, font, ... }
      images: { type: "image", src, x, y, w, h }
   */
-  objects: [],
+  layers: [
+  {
+    id: "layer1",
+    name: "Layer 1",
+    objects: []
+  }
+],
+
+activeLayerId: "layer1",
+
+  selectedId: null,
+
+  mode: "draw",
+
+  currentTool: "paint",
 
   // Used while the user is currently drawing
   drawing: {

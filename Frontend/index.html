@@ -11,18 +11,30 @@
 
   <!-- Toolbar  -->
   <div class="toolbar">
+    <button id="undoBtn">Undo</button>
+    <button id="redoBtn">Redo</button>
+
+    <button class="smallBtn" id="paintBtn">P</button>
+    <button class="smallBtn" id="highlightBtn">H</button>
+    <button class="smallBtn" id="eraseBtn">E</button>
+
     <input type="color" id="colorPicker" value="#000000">
     <input type="range" id="brushSize" min="1" max="25" value="5">
 
+    <button id="selectBtn">Select</button>
+
     <button id="addRectBtn" class="iconBtn"><i class="bi bi-square-fill"></i></button>
-    <button id="addCircleBtn" class="iconBtn"><i class="bi bi-circle-fill"></i></i></button>
-    <button id="addTriangleBtn" class="iconBtn"><i class="bi bi-triangle-fill"></i></i></button>
+    <button id="addCircleBtn" class="iconBtn"><i class="bi bi-circle-fill"></i></button>
+    <button id="addTriangleBtn" class="iconBtn"><i class="bi bi-triangle-fill"></i></button>
     <button id="addLineBtn" class="iconBtn">—</button>
 
     <label class="fillToggle">
       <input type="checkbox" id="fillToggle">
       Fill
     </label>
+    
+    <button id="addLayerBtn">Add Layer</button>
+    <button id="deleteLayerBtn">Delete Layer</button>
 
     <button id="deleteBtn">Delete Selected</button>
     <button id="clearButton">Clear</button>
@@ -33,11 +45,11 @@
       <input type="file" id="loadProjectInput" accept="application/json">
     </label>
     
+    
   </div>
 
   <!-- Canvas stays centered because it's on its own line -->
   <canvas id="canvas" width="1200" height="630"></canvas>
-  ff
   <!-- Save Project Popup -->
 <div id="savePopup" class="savePopup">
   <div class="popup-content">
