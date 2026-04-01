@@ -28,6 +28,9 @@ const clearButton = document.getElementById("clearButton");
 const saveProjectBtn = document.getElementById("saveProjectBtn");
 const loadProjectInput = document.getElementById("loadProjectInput");
 const deleteBtn = document.getElementById("deleteBtn");
+const importImageInput = document.getElementById("importImageInput");
+const cropBtn = document.getElementById("cropBtn");
+const resizeCanvasBtn = document.getElementById("resizeCanvasBtn");
 
 // Shape buttons
 const addRectBtn = document.getElementById("addRectBtn");
@@ -35,7 +38,6 @@ const addCircleBtn = document.getElementById("addCircleBtn");
 const addTriangleBtn = document.getElementById("addTriangleBtn");
 const addLineBtn = document.getElementById("addLineBtn");
 const fillToggle = document.getElementById("fillToggle");
-
 
 document.getElementById("addLayerBtn").addEventListener("click", () => {
   const newLayer = {
@@ -82,6 +84,9 @@ state.brush.shape = "round";
 state.brush.opacity = 1;
 state.currentTool = "paint";
 
+canvas.width = state.canvas.width;
+canvas.height = state.canvas.height;
+
 function getActiveLayer() {
   return state.layers.find(layer => layer.id === state.activeLayerId);
 }
@@ -103,7 +108,7 @@ function createId() {
 
 function getObjectCenter(obj) {
   if (obj.type === "shape") {
-    if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+    if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
       return {
         x: obj.x + obj.width / 2,
         y: obj.y + obj.height / 2
@@ -150,7 +155,7 @@ function getRotatedCorners(obj) {
   const angle = obj.rotation || 0;
   const center = getObjectCenter(obj);
 
-  if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+  if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
     return [
       rotatePoint(obj.x, obj.y, center.x, center.y, angle),
       rotatePoint(obj.x + obj.width, obj.y, center.x, center.y, angle),
@@ -185,7 +190,7 @@ function getBounds(obj) {
   }
 
   if (obj.type === "shape") {
-    if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+    if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
       const corners = getRotatedCorners(obj);
       const xs = corners.map(p => p.x);
       const ys = corners.map(p => p.y);
@@ -217,8 +222,8 @@ function getBounds(obj) {
 
 function getObjectAt(x, y) {
   const allObjects = state.layers.flatMap(layer => layer.objects);
-   for (let i = allObjects.length - 1; i >= 0; i--) {
-     const obj = allObjects[i];
+  for (let i = allObjects.length - 1; i >= 0; i--) {
+    const obj = allObjects[i];
 
     if (obj.type !== "stroke" && obj.type !== "shape") continue;
 
@@ -248,6 +253,10 @@ function render() {
       if (obj.type === "shape") obj.draw(pen);
       if (state.selectedId === obj.id) drawSelection(obj);
     }
+  }
+
+  if (state.mode === "crop" && state.crop.active) {
+    drawCropBox();
   }
 } 
 
@@ -421,8 +430,49 @@ function drawShape(shapeType) {
   render();
 }
 
+function createImageObject(src, x, y, width, height) {
+  return {
+    id: createId(),
+    type: "shape",
+    shapeType: "image",
+    x,
+    y,
+    width,
+    height,
+    src,
+    rotation: 0,
+    draw: function(pen) {
+      if (!this.imageRef) {
+        this.imageRef = new Image();
+        this.imageRef.src = this.src;
+        this.imageRef.onload = () => render();
+      }
+
+      if (!this.imageRef.complete) return;
+
+      pen.save();
+
+      const centerX = this.x + this.width / 2;
+      const centerY = this.y + this.height / 2;
+
+      pen.translate(centerX, centerY);
+      pen.rotate(this.rotation || 0);
+
+      pen.drawImage(
+        this.imageRef,
+        -this.width / 2,
+        -this.height / 2,
+        this.width,
+        this.height
+      );
+
+      pen.restore();
+    }
+  };
+}
+
 function restoreShapeFunctions() {
-   state.layers.flatMap(layer => layer.objects).forEach(obj => {
+  state.layers.flatMap(layer => layer.objects).forEach(obj => {
     if (obj.type !== "shape") return;
 
     if (obj.shapeType === "rectangle") {
@@ -503,6 +553,36 @@ function restoreShapeFunctions() {
         pen.restore();
       };
     }
+
+    if (obj.shapeType === "image") {
+      obj.draw = function(pen) {
+        if (!this.imageRef) {
+          this.imageRef = new Image();
+          this.imageRef.src = this.src;
+          this.imageRef.onload = () => render();
+        }
+
+        if (!this.imageRef.complete) return;
+
+        pen.save();
+
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+
+        pen.translate(centerX, centerY);
+        pen.rotate(this.rotation || 0);
+
+        pen.drawImage(
+          this.imageRef,
+          -this.width / 2,
+          -this.height / 2,
+          this.width,
+          this.height
+        );
+
+        pen.restore();
+      };
+    }
   });
 }
 
@@ -565,6 +645,20 @@ function drawSelection(obj) {
   pen.stroke();
 }
 
+function drawCropBox() {
+  const x = Math.min(state.crop.startX, state.crop.currentX);
+  const y = Math.min(state.crop.startY, state.crop.currentY);
+  const width = Math.abs(state.crop.currentX - state.crop.startX);
+  const height = Math.abs(state.crop.currentY - state.crop.startY);
+
+  pen.save();
+  pen.strokeStyle = "red";
+  pen.lineWidth = 2;
+  pen.setLineDash([6, 6]);
+  pen.strokeRect(x, y, width, height);
+  pen.restore();
+}
+
 // if clicked on corner
 function getResizeHandle(obj, x, y) {
   const b = getBounds(obj);
@@ -595,7 +689,10 @@ function getResizeHandle(obj, x, y) {
 
 function saveHistory() {
   history = history.slice(0, historyIndex + 1);
-  history.push(JSON.stringify(state.layers));
+  history.push(JSON.stringify({
+    layers: state.layers,
+    canvas: state.canvas
+  }));
   historyIndex++;
 }
 
@@ -603,8 +700,12 @@ function undo() {
   if (historyIndex <= 0) return;
 
   historyIndex--;
-  state.layers = JSON.parse(history[historyIndex]);
-   restoreShapeFunctions(); 
+  const savedState = JSON.parse(history[historyIndex]);
+  state.layers = savedState.layers;
+  state.canvas = savedState.canvas ?? state.canvas;
+  canvas.width = state.canvas.width;
+  canvas.height = state.canvas.height;
+  restoreShapeFunctions(); 
   state.selectedId = null;
 
   render();
@@ -614,8 +715,12 @@ function redo() {
   if (historyIndex >= history.length - 1) return;
 
   historyIndex++;
-  state.layers = JSON.parse(history[historyIndex]);
-   restoreShapeFunctions(); 
+  const savedState = JSON.parse(history[historyIndex]);
+  state.layers = savedState.layers;
+  state.canvas = savedState.canvas ?? state.canvas;
+  canvas.width = state.canvas.width;
+  canvas.height = state.canvas.height;
+  restoreShapeFunctions(); 
   state.selectedId = null;
 
   render();
@@ -645,9 +750,12 @@ function updateToolButtons() {
   highlightBtn.classList.remove("activeTool");
   eraseBtn.classList.remove("activeTool");
   selectBtn.classList.remove("activeTool");
+  cropBtn.classList.remove("activeTool");
 
   if (state.mode === "select") {
     selectBtn.classList.add("activeTool");
+  } else if (state.mode === "crop") {
+    cropBtn.classList.add("activeTool");
   } else {
     if (state.currentTool === "paint") {
       paintBtn.classList.add("activeTool");
@@ -705,9 +813,188 @@ selectBtn.addEventListener("click", () => {
   render();
 });
 
+cropBtn.addEventListener("click", () => {
+  if (state.mode === "crop") {
+    state.mode = "draw";
+    state.crop.active = false;
+  } else {
+    state.mode = "crop";
+    state.selectedId = null;
+  }
+
+  updateToolButtons();
+  render();
+});
+
+resizeCanvasBtn.addEventListener("click", () => {
+  const newWidth = prompt("Enter new canvas width", canvas.width);
+  if (newWidth === null) return;
+
+  const newHeight = prompt("Enter new canvas height", canvas.height);
+  if (newHeight === null) return;
+
+  const width = Number(newWidth);
+  const height = Number(newHeight);
+
+  if (!width || !height || width < 50 || height < 50) {
+    alert("Invalid canvas size");
+    return;
+  }
+
+  state.canvas.width = width;
+  state.canvas.height = height;
+  canvas.width = width;
+  canvas.height = height;
+
+  saveHistory();
+  render();
+});
+
+importImageInput.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    const img = new Image();
+
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      const maxWidth = canvas.width * 0.6;
+      const maxHeight = canvas.height * 0.6;
+
+      const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+
+      width *= ratio;
+      height *= ratio;
+
+      const imageObj = createImageObject(
+        reader.result,
+        (canvas.width - width) / 2,
+        (canvas.height - height) / 2,
+        width,
+        height
+      );
+
+      imageObj.imageRef = img;
+
+      getActiveLayer().objects.push(imageObj);
+      state.selectedId = imageObj.id;
+      state.mode = "select";
+
+      saveHistory();
+      updateToolButtons();
+      render();
+    };
+
+    img.src = reader.result;
+  };
+
+  reader.readAsDataURL(file);
+  e.target.value = "";
+});
+
+function cropCanvas() {
+  const x = Math.min(state.crop.startX, state.crop.currentX);
+  const y = Math.min(state.crop.startY, state.crop.currentY);
+  const width = Math.abs(state.crop.currentX - state.crop.startX);
+  const height = Math.abs(state.crop.currentY - state.crop.startY);
+
+  if (width < 10 || height < 10) {
+    state.crop.active = false;
+    state.mode = "draw";
+    updateToolButtons();
+    render();
+    return;
+  }
+
+  for (const layer of state.layers) {
+    const newObjects = [];
+
+    for (const obj of layer.objects) {
+      const bounds = getBounds(obj);
+
+      const intersects =
+        bounds.maxX >= x &&
+        bounds.minX <= x + width &&
+        bounds.maxY >= y &&
+        bounds.minY <= y + height;
+
+      if (!intersects) continue;
+
+      if (obj.type === "stroke") {
+        obj.points = obj.points
+          .filter(point =>
+            point.x >= x &&
+            point.x <= x + width &&
+            point.y >= y &&
+            point.y <= y + height
+          )
+          .map(point => ({
+            x: point.x - x,
+            y: point.y - y
+          }));
+
+        if (obj.points.length >= 2) {
+          newObjects.push(obj);
+        }
+      }
+
+      if (obj.type === "shape") {
+        if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
+          obj.x -= x;
+          obj.y -= y;
+        }
+
+        if (obj.shapeType === "circle") {
+          obj.x -= x;
+          obj.y -= y;
+        }
+
+        if (obj.shapeType === "line") {
+          obj.x -= x;
+          obj.y -= y;
+          obj.x2 -= x;
+          obj.y2 -= y;
+        }
+
+        newObjects.push(obj);
+      }
+    }
+
+    layer.objects = newObjects;
+  }
+
+  state.canvas.width = width;
+  state.canvas.height = height;
+  canvas.width = width;
+  canvas.height = height;
+
+  state.selectedId = null;
+  state.crop.active = false;
+  state.mode = "draw";
+
+  saveHistory();
+  updateToolButtons();
+  render();
+}
+
 // Mouse drawing
 canvas.addEventListener("mousedown", (event) => {
   const pos = getMousePosition(event);
+
+  if (state.mode === "crop") {
+    state.crop.active = true;
+    state.crop.startX = pos.x;
+    state.crop.startY = pos.y;
+    state.crop.currentX = pos.x;
+    state.crop.currentY = pos.y;
+    render();
+    return;
+  }
 
   if (state.mode === "select") {
     const selectedObj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
@@ -789,7 +1076,6 @@ canvas.addEventListener("mousedown", (event) => {
     points: [pos]
   });
 
-
   state.drawing.activeStrokeId = strokeId;
 
   render();
@@ -797,6 +1083,15 @@ canvas.addEventListener("mousedown", (event) => {
 
 canvas.addEventListener("mousemove", (event) => {
   const pos = getMousePosition(event);
+
+  if (state.mode === "crop") {
+    if (state.crop.active) {
+      state.crop.currentX = pos.x;
+      state.crop.currentY = pos.y;
+      render();
+    }
+    return;
+  }
 
   if (state.mode !== "select") {
     // DRAWING (original behaviour)
@@ -839,7 +1134,7 @@ canvas.addEventListener("mousemove", (event) => {
     const dy = pos.y - dragStart.y;
 
     if (obj.type === "shape") {
-      if (obj.shapeType === "rectangle" || obj.shapeType === "triangle") {
+      if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
         if (resizeHandle === "br") {
           obj.width += dx;
           obj.height += dy;
@@ -901,7 +1196,10 @@ canvas.addEventListener("mousemove", (event) => {
         obj.y += dy;
         obj.x2 += dx;
         obj.y2 += dy;
-      } else {
+      } else if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
+        obj.x += dx;
+        obj.y += dy;
+      } else if (obj.shapeType === "circle") {
         obj.x += dx;
         obj.y += dy;
       }
@@ -914,6 +1212,11 @@ canvas.addEventListener("mousemove", (event) => {
 });
 
 window.addEventListener("mouseup", () => {
+  if (state.mode === "crop" && state.crop.active) {
+    cropCanvas();
+    return;
+  }
+
   if (state.drawing.isDrawing) {
     state.drawing.isDrawing = false;
     state.drawing.activeStrokeId = null;
@@ -1024,18 +1327,22 @@ loadProjectInput.addEventListener("change", async (e) => {
   const text = await file.text();
   const loadedData = JSON.parse(text);
 
-if (!loadedData || !Array.isArray(loadedData.layers)) {
-  alert("Invalid project file");
-  e.target.value = "";
-  return;
-}
+  if (!loadedData || !Array.isArray(loadedData.layers)) {
+    alert("Invalid project file");
+    e.target.value = "";
+    return;
+  }
 
-state.layers = loadedData.layers;
-state.activeLayerId = loadedData.activeLayerId ?? state.layers[0].id;
-restoreShapeFunctions();
-state.selectedId = loadedData.selectedId ?? null;
-state.mode = loadedData.mode ?? "draw";
-state.currentTool = loadedData.currentTool ?? "paint";
+  state.layers = loadedData.layers;
+  state.activeLayerId = loadedData.activeLayerId ?? state.layers[0].id;
+  state.canvas = loadedData.canvas ?? state.canvas;
+  canvas.width = state.canvas.width;
+  canvas.height = state.canvas.height;
+  restoreShapeFunctions();
+  state.selectedId = loadedData.selectedId ?? null;
+  state.mode = loadedData.mode ?? "draw";
+  state.currentTool = loadedData.currentTool ?? "paint";
+  state.brush = loadedData.brush ?? state.brush;
 
   state.drawing.isDrawing = false;
   state.drawing.activeStrokeId = null;

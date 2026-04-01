@@ -36,6 +36,14 @@
     <button id="addLayerBtn">Add Layer</button>
     <button id="deleteLayerBtn">Delete Layer</button>
 
+    <label class="fileLabel">
+      Import Image
+      <input type="file" id="importImageInput" accept="image/*">
+    </label>
+
+    <button id="cropBtn">Crop</button>
+    <button id="resizeCanvasBtn">Resize Canvas</button>
+
     <button id="deleteBtn">Delete Selected</button>
     <button id="clearButton">Clear</button>
     <button id="saveProjectBtn">Save Project</button>
@@ -44,23 +52,22 @@
       Load Project
       <input type="file" id="loadProjectInput" accept="application/json">
     </label>
-    
-    
   </div>
 
   <!-- Canvas stays centered because it's on its own line -->
   <canvas id="canvas" width="1200" height="630"></canvas>
+
   <!-- Save Project Popup -->
-<div id="savePopup" class="savePopup">
-  <div class="popup-content">
-    <h2>Save Your Project</h2>
-    <input type="text" id="projectNameInput" placeholder="Enter project name" />
-    <div class="popup-buttons">
-      <button id="saveConfirmBtn">Save</button>
-      <button id="saveCancelBtn">Cancel</button>
+  <div id="savePopup" class="savePopup">
+    <div class="popup-content">
+      <h2>Save Your Project</h2>
+      <input type="text" id="projectNameInput" placeholder="Enter project name" />
+      <div class="popup-buttons">
+        <button id="saveConfirmBtn">Save</button>
+        <button id="saveCancelBtn">Cancel</button>
+      </div>
     </div>
   </div>
-</div>
 
   <!-- type="module" allows us to import from state.js -->
   <script type="module" src="script.js"></script>

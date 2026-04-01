@@ -32,14 +32,27 @@ export const state = {
      images: { type: "image", src, x, y, w, h }
   */
   layers: [
-  {
-    id: "layer1",
-    name: "Layer 1",
-    objects: []
-  }
-],
+    {
+      id: "layer1",
+      name: "Layer 1",
+      objects: []
+    }
+  ],
 
-activeLayerId: "layer1",
+  activeLayerId: "layer1",
+
+  canvas: {
+    width: 1200,
+    height: 630
+  },
+
+  crop: {
+    active: false,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0
+  },
 
   selectedId: null,
 
