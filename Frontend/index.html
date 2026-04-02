@@ -12,8 +12,17 @@
 
   <!-- Toolbar  -->
   <div class="toolbar">
+    <button id="undoBtn">Undo</button>
+    <button id="redoBtn">Redo</button>
+
+    <button class="smallBtn" id="paintBtn">P</button>
+    <button class="smallBtn" id="highlightBtn">H</button>
+    <button class="smallBtn" id="eraseBtn">E</button>
+
     <input type="color" id="colorPicker" value="#000000">
     <input type="range" id="brushSize" min="1" max="25" value="5">
+
+    <button id="selectBtn">Select</button>
 
     <button id="addRectBtn" class="iconBtn"><i class="bi bi-square-fill"></i></button>
     <button id="addCircleBtn" class="iconBtn"><i class="bi bi-circle-fill"></i></button>
@@ -24,6 +33,17 @@
       <input type="checkbox" id="fillToggle">
       Fill
     </label>
+    
+    <button id="addLayerBtn">Add Layer</button>
+    <button id="deleteLayerBtn">Delete Layer</button>
+
+    <label class="fileLabel">
+      Import Image
+      <input type="file" id="importImageInput" accept="image/*">
+    </label>
+
+    <button id="cropBtn">Crop</button>
+    <button id="resizeCanvasBtn">Resize Canvas</button>
 
     <!-- Text Dropdown -->
     <div class="dropdown">
@@ -60,11 +80,12 @@
           <button id="alignRightBtn" class="iconBtn"><i class="bi bi-text-right"></i></button>
         </div> 
 
-        <!-- Bold, Italic, Underline -->
+        <!-- Bold, Italic, Underline, Strikethrough -->
         <div class="textFormatting">
           <button id="boldBtn" class="iconBtn"><i class="bi bi-type-bold"></i></button>
           <button id="italicBtn" class="iconBtn"><i class="bi bi-type-italic"></i></button>
           <button id="underlineBtn" class="iconBtn"><i class="bi bi-type-underline"></i></button>
+          <button id="strikethroughBtn" class="iconBtn"><i class="bi bi-type-strikethrough"></i></button>
         </div> 
 
       </div> 
@@ -78,6 +99,7 @@
       Load Project
       <input type="file" id="loadProjectInput" accept="application/json">
     </label>
+  </div>
 
   </div> <!-- ← closes toolbar -->
 
