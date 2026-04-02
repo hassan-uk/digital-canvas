@@ -222,6 +222,39 @@ function getBounds(obj) {
 }
 
 function getObjectAt(x, y) {
+  // Check text objects first (they're on top)
+  for (let i = textObjects.length - 1; i >= 0; i--) {
+    const textObj = textObjects[i];
+    // Ensure text object has an id
+    if (!textObj.id) {
+      textObj.id = createId();
+    }
+    pen.font = textObj.font;
+    const width = pen.measureText(textObj.text).width;
+    
+    // Extract font size for dynamic hit detection
+    const fontSizeMatch = textObj.font.match(/(\d+)px/);
+    const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 16;
+    const boxHeight = fontSize + 8;
+    
+    // Calculate bounding box based on alignment
+    let rectX;
+    if (textObj.align === 'center') {
+      rectX = textObj.x - width / 2 - 2;
+    } else if (textObj.align === 'right') {
+      rectX = textObj.x - width - 2;
+    } else { // 'left'
+      rectX = textObj.x - 2;
+    }
+    
+    const rectY = textObj.y - fontSize - 4;
+    const rectWidth = width + 4;
+    
+    if (x >= rectX && x <= rectX + rectWidth && y >= rectY && y <= rectY + boxHeight) {
+      return textObj;
+    }
+  }
+  
   const allObjects = state.layers.flatMap(layer => layer.objects);
   for (let i = allObjects.length - 1; i >= 0; i--) {
     const obj = allObjects[i];
@@ -429,6 +462,7 @@ function drawShape(shapeType) {
   getActiveLayer().objects.push(shape);
   saveHistory();
   state.selectedId = shape.id;
+  selectedText = null;
   state.mode = "select";
   updateToolButtons();
   render();
@@ -665,6 +699,9 @@ function drawCropBox() {
 
 // if clicked on corner
 function getResizeHandle(obj, x, y) {
+  // Skip for text objects - they use font size to resize
+  if (!obj.type) return null;
+  
   const b = getBounds(obj);
   const size = 10;
 
@@ -689,6 +726,95 @@ function getResizeHandle(obj, x, y) {
   }
 
   return null;
+}
+
+// Detect text resize handle (all 4 corners) - accounts for rotation
+function getTextResizeHandle(textObj, x, y) {
+  pen.font = textObj.font;
+  const width = pen.measureText(textObj.text).width;
+  const fontSizeMatch = textObj.font.match(/(\d+)px/);
+  const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 16;
+  const boxHeight = fontSize + 8;
+  
+  let rectX;
+  if (textObj.align === 'center') {
+    rectX = textObj.x - width / 2 - 2;
+  } else if (textObj.align === 'right') {
+    rectX = textObj.x - width - 2;
+  } else {
+    rectX = textObj.x - 2;
+  }
+  
+  const rectY = textObj.y - fontSize - 4;
+  const centerX = rectX + width / 2 + 2;
+  const centerY = rectY + boxHeight / 2;
+  const size = 10;
+  
+  let unrotatedHandles = {
+    tl: { x: rectX, y: rectY },
+    tr: { x: rectX + width + 4, y: rectY },
+    bl: { x: rectX, y: rectY + boxHeight },
+    br: { x: rectX + width + 4, y: rectY + boxHeight }
+  };
+  
+  for (const key in unrotatedHandles) {
+    let h = unrotatedHandles[key];
+    
+    // If text is rotated, rotate the handle position to find where it should be
+    if (textObj.rotation) {
+      const dx = h.x - centerX;
+      const dy = h.y - centerY;
+      h = {
+        x: centerX + dx * Math.cos(textObj.rotation) - dy * Math.sin(textObj.rotation),
+        y: centerY + dx * Math.sin(textObj.rotation) + dy * Math.cos(textObj.rotation)
+      };
+    }
+    
+    if (x >= h.x - size && x <= h.x + size && y >= h.y - size && y <= h.y + size) {
+      return key;
+    }
+  }
+  
+  return null;
+}
+
+// Detect text rotate handle (top center) - accounts for rotation
+function getTextRotateHandle(textObj, x, y) {
+  pen.font = textObj.font;
+  const width = pen.measureText(textObj.text).width;
+  const fontSizeMatch = textObj.font.match(/(\d+)px/);
+  const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 16;
+  const boxHeight = fontSize + 8;
+  
+  let rectX;
+  if (textObj.align === 'center') {
+    rectX = textObj.x - width / 2 - 2;
+  } else if (textObj.align === 'right') {
+    rectX = textObj.x - width - 2;
+  } else {
+    rectX = textObj.x - 2;
+  }
+  
+  const rectY = textObj.y - fontSize - 4;
+  const centerX = rectX + width / 2 + 2;
+  const centerY = rectY + boxHeight / 2;
+  let rotateHandleX = centerX;
+  let rotateHandleY = rectY - 25;
+  const size = 8;
+  
+  // If text is rotated, calculate where the handle actually is
+  if (textObj.rotation) {
+    const dx = rotateHandleX - centerX;
+    const dy = rotateHandleY - centerY;
+    rotateHandleX = centerX + dx * Math.cos(textObj.rotation) - dy * Math.sin(textObj.rotation);
+    rotateHandleY = centerY + dx * Math.sin(textObj.rotation) + dy * Math.cos(textObj.rotation);
+  }
+  
+  if (x >= rotateHandleX - size && x <= rotateHandleX + size && y >= rotateHandleY - size && y <= rotateHandleY + size) {
+    return true;
+  }
+  
+  return false;
 }
 
 function saveHistory() {
@@ -779,6 +905,7 @@ paintBtn.addEventListener("click", () => {
   state.mode = "draw";
   state.currentTool = "paint";
   state.selectedId = null;
+  selectedText = null;
   state.brush.shape = "round";
   state.brush.opacity = 1;
   updateToolButtons();
@@ -789,6 +916,7 @@ highlightBtn.addEventListener("click", () => {
   state.mode = "draw";
   state.currentTool = "highlight";
   state.selectedId = null;
+  selectedText = null;
   state.brush.shape = "round";
   state.brush.opacity = 0.25;
   updateToolButtons();
@@ -799,6 +927,7 @@ eraseBtn.addEventListener("click", () => {
   state.mode = "draw";
   state.currentTool = "erase";
   state.selectedId = null;
+  selectedText = null;
   state.brush.shape = "round";
   state.brush.opacity = 1;
   updateToolButtons();
@@ -809,8 +938,10 @@ selectBtn.addEventListener("click", () => {
   if (state.mode === "select") {
     state.mode = "draw";
     state.selectedId = null;
+    selectedText = null;
   } else {
     state.mode = "select";
+    selectedText = null;
   }
 
   updateToolButtons();
@@ -824,6 +955,7 @@ cropBtn.addEventListener("click", () => {
   } else {
     state.mode = "crop";
     state.selectedId = null;
+    selectedText = null;
   }
 
   updateToolButtons();
@@ -887,6 +1019,7 @@ importImageInput.addEventListener("change", (e) => {
 
       getActiveLayer().objects.push(imageObj);
       state.selectedId = imageObj.id;
+      selectedText = null;
       state.mode = "select";
 
       saveHistory();
@@ -972,6 +1105,44 @@ function cropCanvas() {
     layer.objects = newObjects;
   }
 
+  // Crop text objects as well
+  textObjects = textObjects.filter(textObj => {
+    // Check if text position is within crop area
+    pen.font = textObj.font;
+    const textWidth = pen.measureText(textObj.text).width;
+    
+    let textMinX = textObj.x;
+    if (textObj.align === 'center') {
+      textMinX = textObj.x - textWidth / 2;
+    } else if (textObj.align === 'right') {
+      textMinX = textObj.x - textWidth;
+    }
+    
+    const textMaxX = textMinX + textWidth;
+    const textMinY = textObj.y - 20;
+    const textMaxY = textObj.y + 5;
+    
+    const textIntersects = 
+      textMaxX >= x &&
+      textMinX <= x + width &&
+      textMaxY >= y &&
+      textMinY <= y + height;
+    
+    if (textIntersects) {
+      // Adjust text position to new canvas coordinates
+      if (textObj.align === 'center') {
+        textObj.x = textObj.x - x;
+      } else if (textObj.align === 'right') {
+        textObj.x = textObj.x - x;
+      } else {
+        textObj.x = textObj.x - x;
+      }
+      textObj.y = textObj.y - y;
+      return true;
+    }
+    return false;
+  });
+
   state.canvas.width = width;
   state.canvas.height = height;
   canvas.width = width;
@@ -1001,8 +1172,56 @@ canvas.addEventListener("mousedown", (event) => {
   }
 
   if (state.mode === "select") {
-    const selectedObj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    // Find selected object - could be text or in state.layers
+    let selectedObj = textObjects.find(o => o.id === state.selectedId);
+    if (!selectedObj) {
+      selectedObj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    }
 
+    // Check for text rotate handle
+    if (selectedObj && !selectedObj.type) {
+      const rotateClicked = getTextRotateHandle(selectedObj, pos.x, pos.y);
+      if (rotateClicked) {
+        rotating = true;
+        
+        // Calculate rotation offset
+        pen.font = selectedObj.font;
+        const width = pen.measureText(selectedObj.text).width;
+        const fontSizeMatch = selectedObj.font.match(/(\d+)px/);
+        const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 16;
+        const boxHeight = fontSize + 8;
+        
+        let rectX;
+        if (selectedObj.align === 'center') {
+          rectX = selectedObj.x - width / 2 - 2;
+        } else if (selectedObj.align === 'right') {
+          rectX = selectedObj.x - width - 2;
+        } else {
+          rectX = selectedObj.x - 2;
+        }
+        
+        const rectY = selectedObj.y - fontSize - 4;
+        const center = { x: rectX + width / 2 + 2, y: rectY + boxHeight / 2 };
+        const currentAngle = selectedObj.rotation || 0;
+        const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+        rotationOffset = mouseAngle - currentAngle;
+        
+        return;
+      }
+    }
+
+    // Check for text resize handle
+    if (selectedObj && !selectedObj.type) {
+      const handle = getTextResizeHandle(selectedObj, pos.x, pos.y);
+      if (handle) {
+        resizing = true;
+        resizeHandle = handle;
+        dragStart = pos;
+        return;
+      }
+    }
+    
+    // Skip resize/rotate for text objects
     if (selectedObj && selectedObj.type === "shape") {
       const rotateClicked = getRotateHandle(selectedObj, pos.x, pos.y);
 
@@ -1018,7 +1237,7 @@ canvas.addEventListener("mousedown", (event) => {
       }
     }
 
-    if (selectedObj) {
+    if (selectedObj && selectedObj.type === "shape") {
       const handle = getResizeHandle(selectedObj, pos.x, pos.y);
 
       if (handle) {
@@ -1042,6 +1261,7 @@ canvas.addEventListener("mousedown", (event) => {
     }
 
     state.selectedId = null;
+    selectedText = null;
     render();
     return;
   }
@@ -1049,6 +1269,7 @@ canvas.addEventListener("mousedown", (event) => {
   // NORMAL DRAWING
 
   state.selectedId = null;
+  selectedText = null;
 
   state.drawing.isDrawing = true;
 
@@ -1116,13 +1337,42 @@ canvas.addEventListener("mousemove", (event) => {
   }
 
   if (rotating && state.selectedId) {
-    const obj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    // Check if it's a text object
+    let obj = textObjects.find(o => o.id === state.selectedId);
+    
+    if (!obj) {
+      obj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    }
 
     if (obj && obj.type === "shape") {
       const center = getObjectCenter(obj);
       const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
       obj.rotation = mouseAngle - rotationOffset;
-
+      render();
+    } else if (obj && !obj.type) {
+      // Text rotation - same calculation as shapes
+      if (!obj.rotation) obj.rotation = 0;
+      
+      pen.font = obj.font;
+      const width = pen.measureText(obj.text).width;
+      const fontSizeMatch = obj.font.match(/(\d+)px/);
+      const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 16;
+      const boxHeight = fontSize + 8;
+      
+      let rectX;
+      if (obj.align === 'center') {
+        rectX = obj.x - width / 2 - 2;
+      } else if (obj.align === 'right') {
+        rectX = obj.x - width - 2;
+      } else {
+        rectX = obj.x - 2;
+      }
+      
+      const rectY = obj.y - fontSize - 4;
+      const center = { x: rectX + width / 2 + 2, y: rectY + boxHeight / 2 };
+      const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+      obj.rotation = mouseAngle - rotationOffset;
+      
       render();
     }
 
@@ -1130,12 +1380,77 @@ canvas.addEventListener("mousemove", (event) => {
   }
 
   if (resizing && state.selectedId) {
-    const obj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    // Check if it's a text object
+    let obj = textObjects.find(o => o.id === state.selectedId);
+    if (!obj) {
+      obj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    }
 
     if (!obj) return;
 
     const dx = pos.x - dragStart.x;
     const dy = pos.y - dragStart.y;
+
+    // Handle text resizing (scale font size and adjust position)
+    if (!obj.type) {
+      const fontSizeMatch = obj.font.match(/(\d+)px/);
+      const currentSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 16;
+      
+      // Calculate size change based on handle direction
+      let sizeChange = 0;
+      
+      if (resizeHandle === "br" || resizeHandle === "tr") {
+        // Right handles: use horizontal movement
+        sizeChange = dx * 0.3;
+      }
+      if (resizeHandle === "br" || resizeHandle === "bl") {
+        // Bottom handles: use vertical movement
+        sizeChange += dy * 0.3;
+      }
+      if (resizeHandle === "tl") {
+        // Top-left: invert to shrink when dragging inward
+        sizeChange = -(dx + dy) * 0.3;
+      }
+      if (resizeHandle === "tr") {
+        // Top-right: use horizontal (positive = grow right) and vertical (negative = grow up)
+        sizeChange = (dx - dy) * 0.3;
+      }
+      if (resizeHandle === "bl") {
+        // Bottom-left: use horizontal (negative = grow left) and vertical (positive = grow down)
+        sizeChange = (-dx + dy) * 0.3;
+      }
+      
+      const scaleFactor = Math.max(6, currentSize + sizeChange);
+      
+      obj.font = obj.font.replace(/(\d+)px/, Math.round(scaleFactor) + 'px');
+      document.getElementById('fontSize').value = Math.round(scaleFactor);
+      
+      // Adjust text position based on which corner is being dragged
+      const newSize = Math.round(scaleFactor);
+      const finalSizeChange = newSize - currentSize;
+      
+      if (resizeHandle === "tl") {
+        // Top-left: move down and right to keep opposite corner fixed
+        obj.x -= finalSizeChange / 2;
+        obj.y -= finalSizeChange / 2;
+      } else if (resizeHandle === "tr") {
+        // Top-right: move down and left to keep opposite corner fixed
+        obj.x += finalSizeChange / 2;
+        obj.y -= finalSizeChange / 2;
+      } else if (resizeHandle === "bl") {
+        // Bottom-left: move up and right to keep opposite corner fixed
+        obj.x -= finalSizeChange / 2;
+        obj.y += finalSizeChange / 2;
+      } else if (resizeHandle === "br") {
+        // Bottom-right: move up and left to keep opposite corner fixed
+        obj.x += finalSizeChange / 2;
+        obj.y += finalSizeChange / 2;
+      }
+      
+      render();
+      dragStart = pos;
+      return;
+    }
 
     if (obj.type === "shape") {
       if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
@@ -1178,23 +1493,35 @@ canvas.addEventListener("mousemove", (event) => {
 
   // DRAGGING OBJECT
   if (dragging && state.selectedId) {
-    const obj = state.layers.flatMap(layer => layer.objects).find(
-      o => o.id === state.selectedId
-    );
+    // Check if it's a text object
+    let obj = textObjects.find(o => o.id === state.selectedId);
+    
+    // If not text, check in state.layers
+    if (!obj) {
+      obj = state.layers.flatMap(layer => layer.objects).find(
+        o => o.id === state.selectedId
+      );
+    }
 
     if (!obj) return;
 
     const dx = pos.x - dragStart.x;
     const dy = pos.y - dragStart.y;
 
-    if (obj.type === "stroke") {
+    // Handle text objects
+    if (obj.id && !obj.type) {
+      obj.x += dx;
+      obj.y += dy;
+    }
+    // Handle stroke objects
+    else if (obj.type === "stroke") {
       obj.points.forEach(p => {
         p.x += dx;
         p.y += dy;
       });
     }
-
-    if (obj.type === "shape") {
+    // Handle shape objects
+    else if (obj.type === "shape") {
       if (obj.shapeType === "line") {
         obj.x += dx;
         obj.y += dy;
@@ -1431,7 +1758,26 @@ function getTextAtPosition(x, y) {
         const obj = textObjects[i];
         pen.font = obj.font;
         const width = pen.measureText(obj.text).width;
-        if (x >= obj.x && x <= obj.x + width && y >= obj.y - 20 && y <= obj.y + 5) {
+        
+        // Extract font size for dynamic hit detection
+        const fontSizeMatch = obj.font.match(/(\d+)px/);
+        const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 16;
+        const boxHeight = fontSize + 8;
+        
+        // Calculate bounding box based on alignment
+        let rectX;
+        if (obj.align === 'center') {
+            rectX = obj.x - width / 2 - 2;
+        } else if (obj.align === 'right') {
+            rectX = obj.x - width - 2;
+        } else { // 'left'
+            rectX = obj.x - 2;
+        }
+        
+        const rectY = obj.y - fontSize - 4;
+        const rectWidth = width + 4;
+        
+        if (x >= rectX && x <= rectX + rectWidth && y >= rectY && y <= rectY + boxHeight) {
             return obj;
         }
     }
@@ -1547,6 +1893,7 @@ function createTextInput(x, y, editIndex) {
             } else {
                 // Create new text
                 textObjects.push({
+                    id: createId(),
                     text: value,
                     x,
                     y,
@@ -1596,12 +1943,34 @@ function getFontString() {
 
 function redrawTextObjects() {
     textObjects.forEach(obj => {
+        pen.save();
+        
         pen.font = obj.font;
         pen.fillStyle = obj.color;
         pen.textAlign = obj.align;
+        
+        const width = pen.measureText(obj.text).width;
+        
+        // Apply rotation if present
+        if (obj.rotation) {
+          let centerX = obj.x;
+          let centerY = obj.y;
+          
+          if (obj.align === 'center') {
+            centerX = obj.x;
+          } else if (obj.align === 'right') {
+            centerX = obj.x;
+          } else {
+            centerX = obj.x + width / 2;
+          }
+          
+          pen.translate(centerX, centerY);
+          pen.rotate(obj.rotation);
+          pen.translate(-centerX, -centerY);
+        }
+        
         pen.fillText(obj.text, obj.x, obj.y);
 
-        const width = pen.measureText(obj.text).width;
         let startX, endX;
 
         // Calculate line start and end based on text alignment (Canvas values)
@@ -1638,7 +2007,16 @@ function redrawTextObjects() {
             pen.stroke();
         }
 
-        if (obj === selectedText) {
+        pen.restore();
+
+        if (obj === selectedText || obj.id === state.selectedId) {
+            pen.save();
+            
+            // Extract font size from font string for dynamic box height
+            const fontSizeMatch = obj.font.match(/(\d+)px/);
+            const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 16;
+            const boxHeight = fontSize + 8; // Add padding
+            
             let rectX;
             if (obj.align === 'center') {
                 rectX = obj.x - width / 2 - 2;
@@ -1649,9 +2027,53 @@ function redrawTextObjects() {
                 // Canvas 'left' = text starts at x and extends right
                 rectX = obj.x - 2;
             }
+            const rectY = obj.y - fontSize - 4;
+            
+            // Apply rotation to the selection box and handles
+            if (obj.rotation) {
+              const centerX = rectX + width / 2 + 2;
+              const centerY = rectY + boxHeight / 2;
+              pen.translate(centerX, centerY);
+              pen.rotate(obj.rotation);
+              pen.translate(-centerX, -centerY);
+            }
+            
             pen.strokeStyle = 'blue';
             pen.lineWidth = 2;
-            pen.strokeRect(rectX, obj.y - 20, width + 4, 25);
+            pen.strokeRect(rectX, rectY, width + 4, boxHeight);
+            
+            // Draw resize handles on all 4 corners
+            const handleSize = 8;
+            const corners = [
+                { x: rectX, y: rectY },                           // top-left
+                { x: rectX + width + 4, y: rectY },               // top-right
+                { x: rectX, y: rectY + boxHeight },               // bottom-left
+                { x: rectX + width + 4, y: rectY + boxHeight }    // bottom-right
+            ];
+            
+            corners.forEach(corner => {
+                pen.fillStyle = 'white';
+                pen.fillRect(corner.x - handleSize / 2, corner.y - handleSize / 2, handleSize, handleSize);
+                pen.strokeStyle = 'blue';
+                pen.lineWidth = 2;
+                pen.strokeRect(corner.x - handleSize / 2, corner.y - handleSize / 2, handleSize, handleSize);
+            });
+            
+            // Draw rotate handle (top center)
+            const rotateHandleX = rectX + width / 2 + 2;
+            const rotateHandleY = rectY - 25;
+            pen.beginPath();
+            pen.moveTo(rectX + width / 2 + 2, rectY);
+            pen.lineTo(rotateHandleX, rotateHandleY);
+            pen.stroke();
+            
+            pen.beginPath();
+            pen.arc(rotateHandleX, rotateHandleY, 6, 0, Math.PI * 2);
+            pen.fillStyle = 'white';
+            pen.fill();
+            pen.stroke();
+            
+            pen.restore();
         }
     });
 }
