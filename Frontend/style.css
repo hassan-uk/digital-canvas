@@ -28,8 +28,14 @@ h1 {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+.divider{
+  width:1px;
+  height:28px;
+  background:#ddd;
+}
+
 .toolbar button {
-  width: 110px;         
+  width: 100px;
   height: 40px;         
   background-color: #5a3f3f;  
   color: white;          
@@ -50,7 +56,9 @@ h1 {
 }
 
 .toolbar button.smallBtn {
-  width: 90px;
+  width: 40px;
+  font-size: 14px;
+  padding: 0;
 }
 
 .toolbar button.iconBtn {
@@ -66,6 +74,16 @@ h1 {
   align-items: center;
   gap: 6px;
   font-family: Segoe UI, 'Helvetica', Arial, sans-serif;
+  background-color: #5a3f3f;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+
+.fillToggle input {
+  accent-color: #5a3f3f;
 }
 
 canvas {
@@ -166,3 +184,139 @@ canvas {
 .popup-buttons button:hover {
   background-color: #a46d6d;
 }
+
+.tool-btn {
+  height: 28px;
+  padding: 0 8px;
+  min-width: 28px;
+  width: auto;
+  background: transparent;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.tool-btn:hover { background: #f0ede8; transform: none; }
+.tool-btn.active, .tool-btn.activeTool { background: #f5ece8; color: #8b3a2a; }
+.tool-btn.primary { background: #2c2c2c; color: white; }
+.tool-btn.primary:hover { background: #444; }
+
+
+.drop-wrap {
+  position: relative;
+}
+
+.drop-wrap .drop-menu {
+  display: none; 
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+  padding: 6px;
+  min-width: max-content;
+  z-index: 1000;
+  flex-direction: column;
+}
+
+.toolbar button {
+  width: 100px;
+  height: 40px;
+  background-color: #5a3f3f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+#drop-edit .drop-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+  padding: 6px 12px;
+  height: 40px;
+  background-color: #5a3f3f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+#drop-edit .drop-item:hover {
+  background-color: #a46d6d;
+}
+
+.drop-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+  padding: 6px;
+  min-width: auto;
+  z-index: 1000;
+  gap: 6px;
+  flex-direction: column;
+}
+
+#drop-shapes .drop-menu {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+#drop-shapes .drop-item,
+#drop-shapes .fillToggle {
+  width: auto;
+  flex: 0 0 auto;
+  height: 40px;
+  text-align: center;
+}
+
+.drop-wrap.open .drop-menu {
+  display: flex;
+}
+
+.drop-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 12px;
+  background-color: #5a3f3f;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 12px;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+  text-align: left;
+  box-sizing: border-box;
+}
+.drop-item:hover { background: #f0ede8; }
+.drop-item.danger:hover { background: #fcecea; color: #b93a3a; }
+.drop-item input[type="file"] { display: none; }
+.drop-item input[type="checkbox"] { accent-color: #5a3f3f; cursor: pointer; }

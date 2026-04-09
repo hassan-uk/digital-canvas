@@ -982,6 +982,21 @@ function cropCanvas() {
   render();
 }
 
+function toggleDropdown(id) {
+  const el = document.getElementById(id);
+  const wasOpen = el.classList.contains('open');
+  document.querySelectorAll('.drop-wrap').forEach(d => d.classList.remove('open'));
+  if (!wasOpen) el.classList.add('open');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.drop-wrap')) {
+    document.querySelectorAll('.drop-wrap').forEach(d => d.classList.remove('open'));
+  }
+});
+
+window.toggleDropdown = toggleDropdown;
+
 // Mouse drawing
 canvas.addEventListener("mousedown", (event) => {
   const pos = getMousePosition(event);
