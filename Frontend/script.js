@@ -101,7 +101,7 @@ function getMousePosition(event) {
 }
 
 // Create unique id
-// ever drawing needs an id this will be important later fr undo/redo etc
+// Every drawing needs an id this will be important later for undo/redo etc
 function createId() {
   return crypto.randomUUID();
 }
@@ -838,7 +838,7 @@ highlightBtn.addEventListener("click", () => {
   state.mode = "draw";
   state.currentTool = "highlight";
   state.selectedId = null;
-  state.brush.shape = "round";
+  state.brush.shape = "square";
   state.brush.opacity = 0.25;
   updateToolButtons();
   render();
