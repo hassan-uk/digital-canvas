@@ -87,5 +87,24 @@
 
   <!-- type="module" allows us to import from state.js -->
   <script type="module" src="script.js"></script>
+
+  <!-- shortcut library -->
+  <script type="text/javascript" src="shortcut.js"></script>
+
+  <!-- shortcuts -->
+  <script>
+    shortcut.add("p", function() {
+      document.getElementById('paintBtn').click();
+    });   
+
+    shortcut.add("h", function() {
+      document.getElementById('highlightBtn').click();
+    });
+
+    shortcut.add("e", function() {
+      document.getElementById('eraseBtn').click();
+    }); 
+  </script>
+
 </body>
 </html>

@@ -64,6 +64,7 @@ document.getElementById("deleteLayerBtn").addEventListener("click", () => {
 });
 
 // Variables
+let erasing = false;
 let dragging = false;
 let dragStart = { x: 0, y: 0 };
 
@@ -175,56 +176,56 @@ function getRotatedCorners(obj) {
 
 
 // Returns all the points on a stroke
-function getAllPoints(obj) {
-  const xs = obj.points.map(p => p.x);
-  const ys = obj.points.map(p => p.y);
+// function getAllPoints(obj) {
+//   const xs = obj.points.map(p => p.x);
+//   const ys = obj.points.map(p => p.y);
 
-  return obj.points;
-}
+//   return obj.points;
+// }
 
 
-// Gets object from all stroke points
-function getBetterObjectAt(x, y) {
-  var xGood = false;
-  var yGood = false;
+// // Gets object from all stroke points
+// function getBetterObjectAt(x, y) {
+//   var xGood = false;
+//   var yGood = false;
 
-  for (let i = state.objects.length - 1; i >= 0; i--) {
-    const obj = state.objects[i];
+//   for (let i = state.objects.length - 1; i >= 0; i--) {
+//     const obj = state.objects[i];
 
-    if (obj.type !== "stroke") continue;
+//     if (obj.type !== "stroke") continue;
 
-    // Get array of all stroke points
-    // const b = getAllPoints(obj);
+//     // Get array of all stroke points
+//     // const b = getAllPoints(obj);
 
-    const b = getAllPoints(obj);
+//     const b = getAllPoints(obj);
 
-    // For every point, check if selection in vicinity
-    for (var p of b) {
-      var rad = brushSize.value*1;
-      var lastPoint = b[0];
-      xGood = false;
-      yGood = false;
+//     // For every point, check if selection in vicinity
+//     for (var p of b) {
+//       var rad = brushSize.value*1;
+//       var lastPoint = b[0];
+//       xGood = false;
+//       yGood = false;
 
-      if (b.indexOf(p) > 1) {
-        lastPoint = b[b.indexOf(p) - 1];
-      }
+//       if (b.indexOf(p) > 1) {
+//         lastPoint = b[b.indexOf(p) - 1];
+//       }
 
-      if (x >= (Math.min(p.x-rad, lastPoint.x-rad)) && x <= (Math.max(p.x+rad, lastPoint.x+rad))) {
-        xGood = true;
-      }
+//       if (x >= (Math.min(p.x-rad, lastPoint.x-rad)) && x <= (Math.max(p.x+rad, lastPoint.x+rad))) {
+//         xGood = true;
+//       }
 
-      if (y >= (Math.min(p.y-rad, lastPoint.y-rad)) && y <= (Math.max(p.y+rad, lastPoint.y+rad))) {
-        yGood = true;
-      }
+//       if (y >= (Math.min(p.y-rad, lastPoint.y-rad)) && y <= (Math.max(p.y+rad, lastPoint.y+rad))) {
+//         yGood = true;
+//       }
 
-      // If both x and y in close vicinity, return object
-      if (xGood && yGood) {
-        console.log("x and y good");
-        return obj;
-      }
-    }
-  }
-}
+//       // If both x and y in close vicinity, return object
+//       if (xGood && yGood) {
+//         console.log("x and y good");
+//         return obj;
+//       }
+//     }
+//   }
+// }
 
 
 function getBounds(obj) {
