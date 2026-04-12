@@ -9,7 +9,6 @@
 <body>
   <h1>VisualGrid</h1>
 
-  <!-- Toolbar  -->
   <div class="toolbar">
     <button class="smallBtn" id="paintBtn">P</button>
     <button class="smallBtn" id="highlightBtn">H</button>
@@ -24,60 +23,63 @@
 
     <div class="drop-wrap" id="drop-shapes">
       <button class="tool-btn" onclick="toggleDropdown('drop-shapes')">Shapes</button>
-        <div class="drop-menu">
-          <button id="addRectBtn" class ="drop-item iconBtn"><i class="bi bi-square-fill"></i></button>
-          <button id="addCircleBtn" class ="drop-item iconBtn"><i class="bi bi-circle-fill"></i></button>
-          <button id="addTriangleBtn" class ="drop-item iconBtn"><i class="bi bi-triangle-fill"></i></button>
-          <button id="addLineBtn" class ="drop-item iconBtn">—</button>
-          <label class="fillToggle">
-            <input type="checkbox" id="fillToggle">
-            Fill
-          </label>
-        </div>
+      <div class="drop-menu">
+        <button id="addRectBtn" class="drop-item iconBtn"><i class="bi bi-square-fill"></i></button>
+        <button id="addCircleBtn" class="drop-item iconBtn"><i class="bi bi-circle-fill"></i></button>
+        <button id="addTriangleBtn" class="drop-item iconBtn"><i class="bi bi-triangle-fill"></i></button>
+        <button id="addLineBtn" class="drop-item iconBtn">—</button>
+        <label class="fillToggle">
+          <input type="checkbox" id="fillToggle">
+          Fill
+        </label>
+      </div>
     </div>
 
     <div class="drop-wrap" id="drop-edit">
       <button class="tool-btn" onclick="toggleDropdown('drop-edit')">Edit</button>
-        <div class="drop-menu">
-          <button class ="drop-item" id="selectBtn">Select</button>
-          <button class ="drop-item" id="deleteBtn">Delete Selected</button>
-          <button class ="drop-item" id="addLayerBtn">Add Layer</button>
-          <button class ="drop-item" id="deleteLayerBtn">Delete Layer</button>
-          <button class ="drop-item" id="cropBtn">Crop</button>
-          <button class ="drop-item" id="resizeCanvasBtn">Resize Canvas</button>
-        </div>
+      <div class="drop-menu">
+        <button class="drop-item" id="selectBtn">Select</button>
+        <button class="drop-item" id="deleteBtn">Delete Selected</button>
+        <button class="drop-item" id="addLayerBtn">Add Layer</button>
+        <button class="drop-item" id="deleteLayerBtn">Delete Layer</button>
+        <button class="drop-item" id="cropBtn">Crop</button>
+        <button class="drop-item" id="resizeCanvasBtn">Resize Canvas</button>
+      </div>
     </div>
-    
+
     <div class="drop-wrap" id="drop-file">
       <button class="tool-btn" onclick="toggleDropdown('drop-file')">File</button>
-        <div class="drop-menu">
-          <label class="fileLabel">
-            Import Image
-            <input type="file" id="importImageInput" accept="image/*">
-          </label>
-          <label class="fileLabel">
-            Load Project
-            <input type="file" id="loadProjectInput" accept="application/json">
-          </label>
-          <button id="saveProjectBtn">Save Project</button>
-        </div>
+      <div class="drop-menu">
+        <label class="fileLabel">
+          Import Image
+          <input type="file" id="importImageInput" accept="image/*">
+        </label>
+        <label class="fileLabel">
+          Load Project
+          <input type="file" id="loadProjectInput" accept="application/json">
+        </label>
+        <button id="saveProjectBtn">Save Project</button>
+        <button id="savePngBtn">Save PNG</button>
+      </div>
     </div>
 
     <div class="divider"></div>
+
+    <button class="smallBtn" id="zoomOutBtn"><i class="bi bi-zoom-out"></i></button>
+    <button class="smallBtn" id="zoomInBtn"><i class="bi bi-zoom-in"></i></button>
+
     <button class="smallBtn" id="undoBtn"><i class="bi bi-arrow-counterclockwise"></i></button>
     <button class="smallBtn" id="redoBtn"><i class="bi bi-arrow-clockwise"></i></button>
-    
+
     <button id="clearButton">Clear</button>
   </div>
 
-  <!-- Canvas stays centered because it's on its own line -->
   <canvas id="canvas" width="1200" height="630"></canvas>
 
-  <!-- Save Project Popup -->
   <div id="savePopup" class="savePopup">
     <div class="popup-content">
       <h2>Save Your Project</h2>
-      <input type="text" id="projectNameInput" placeholder="Enter project name" />
+      <input type="text" id="projectNameInput" placeholder="Enter project name">
       <div class="popup-buttons">
         <button id="saveConfirmBtn">Save</button>
         <button id="saveCancelBtn">Cancel</button>
@@ -85,7 +87,6 @@
     </div>
   </div>
 
-  <!-- type="module" allows us to import from state.js -->
   <script type="module" src="script.js"></script>
 </body>
 </html>

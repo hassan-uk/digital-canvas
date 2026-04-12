@@ -26,42 +26,29 @@ const colorPicker = document.getElementById("colorPicker");
 const brushSize = document.getElementById("brushSize");
 const clearButton = document.getElementById("clearButton");
 const saveProjectBtn = document.getElementById("saveProjectBtn");
+const savePngBtn = document.getElementById("savePngBtn");
 const loadProjectInput = document.getElementById("loadProjectInput");
 const deleteBtn = document.getElementById("deleteBtn");
 const importImageInput = document.getElementById("importImageInput");
 const cropBtn = document.getElementById("cropBtn");
 const resizeCanvasBtn = document.getElementById("resizeCanvasBtn");
+const zoomInBtn = document.getElementById("zoomInBtn");
+const zoomOutBtn = document.getElementById("zoomOutBtn");
 
-// Shape buttons
 const addRectBtn = document.getElementById("addRectBtn");
 const addCircleBtn = document.getElementById("addCircleBtn");
 const addTriangleBtn = document.getElementById("addTriangleBtn");
 const addLineBtn = document.getElementById("addLineBtn");
 const fillToggle = document.getElementById("fillToggle");
+const addLayerBtn = document.getElementById("addLayerBtn");
+const deleteLayerBtn = document.getElementById("deleteLayerBtn");
 
-document.getElementById("addLayerBtn").addEventListener("click", () => {
-  const newLayer = {
-    id: crypto.randomUUID(),
-    name: "Layer " + (state.layers.length + 1),
-    objects: []
-  };
-
-  state.layers.push(newLayer);
-  state.activeLayerId = newLayer.id;
-
-  saveHistory();
-  render();
-});
-
-document.getElementById("deleteLayerBtn").addEventListener("click", () => {
-  if (state.layers.length <= 1) return;
-
-  state.layers = state.layers.filter(layer => layer.id !== state.activeLayerId);
-  state.activeLayerId = state.layers[0].id;
-
-  saveHistory();
-  render();
-});
+const savePopup = document.getElementById("savePopup");
+const projectNameInput = document.getElementById("projectNameInput");
+const saveConfirmBtn = document.getElementById("saveConfirmBtn");
+const saveCancelBtn = document.getElementById("saveCancelBtn");
+const undoBtn = document.getElementById("undoBtn");
+const redoBtn = document.getElementById("redoBtn");
 
 // Variables
 let erasing = false;
@@ -78,7 +65,7 @@ let history = [];
 let historyIndex = -1;
 
 // Set starting brush settings
-state.brush.color = (colorPicker.value);
+state.brush.color = colorPicker.value;
 state.brush.size = Number(brushSize.value);
 state.brush.shape = "round";
 state.brush.opacity = 1;
@@ -86,17 +73,31 @@ state.currentTool = "paint";
 
 canvas.width = state.canvas.width;
 canvas.height = state.canvas.height;
+applyZoom();
 
 function getActiveLayer() {
   return state.layers.find(layer => layer.id === state.activeLayerId);
 }
 
+function getObjectRecordById(id) {
+  for (const layer of state.layers) {
+    const obj = layer.objects.find(item => item.id === id);
+    if (obj) {
+      return { layer, obj };
+    }
+  }
+  return null;
+}
+
 // Get mouse position inside canvas
 function getMousePosition(event) {
   const box = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / box.width;
+  const scaleY = canvas.height / box.height;
+
   return {
-    x: event.clientX - box.left,
-    y: event.clientY - box.top
+    x: (event.clientX - box.left) * scaleX,
+    y: (event.clientY - box.top) * scaleY
   };
 }
 
@@ -174,10 +175,8 @@ function getRotatedCorners(obj) {
   return [];
 }
 
-
 function getBounds(obj) {
-
-  if (obj.type == "stroke") {
+  if (obj.type === "stroke") {
     const xs = obj.points.map(p => p.x);
     const ys = obj.points.map(p => p.y);
 
@@ -202,9 +201,16 @@ function getBounds(obj) {
         maxY: Math.max(...ys)
       };
     }
+
     if (obj.shapeType === "circle") {
-      return { minX: obj.x - obj.radius, minY: obj.y - obj.radius, maxX: obj.x + obj.radius, maxY: obj.y + obj.radius };
+      return {
+        minX: obj.x - obj.radius,
+        minY: obj.y - obj.radius,
+        maxX: obj.x + obj.radius,
+        maxY: obj.y + obj.radius
+      };
     }
+
     if (obj.shapeType === "line") {
       const points = getRotatedCorners(obj);
       const xs = points.map(p => p.x);
@@ -218,34 +224,69 @@ function getBounds(obj) {
       };
     }
   }
+
+  return null;
 }
 
 function getObjectAt(x, y) {
-  const allObjects = state.layers.flatMap(layer => layer.objects);
-  for (let i = allObjects.length - 1; i >= 0; i--) {
-    const obj = allObjects[i];
+  for (let layerIndex = state.layers.length - 1; layerIndex >= 0; layerIndex--) {
+    const layer = state.layers[layerIndex];
 
-    if (obj.type !== "stroke" && obj.type !== "shape") continue;
+    for (let i = layer.objects.length - 1; i >= 0; i--) {
+      const obj = layer.objects[i];
 
-    const b = getBounds(obj);
+      if (obj.type !== "stroke" && obj.type !== "shape") continue;
 
-    if (
-      x >= b.minX - 5 &&
-      x <= b.maxX + 5 &&
-      y >= b.minY - 5 &&
-      y <= b.maxY + 5
-    ) {
-      return obj;
+      const b = getBounds(obj);
+      if (!b) continue;
+
+      if (
+        x >= b.minX - 5 &&
+        x <= b.maxX + 5 &&
+        y >= b.minY - 5 &&
+        y <= b.maxY + 5
+      ) {
+        return { layer, obj };
+      }
     }
   }
 
   return null;
 }
 
+function renderGrid(context) {
+  const gridSize = 25;
+  context.save();
+  context.strokeStyle = "#eaeaea";
+  context.lineWidth = 1;
+
+  for (let x = 0; x <= canvas.width; x += gridSize) {
+    context.beginPath();
+    context.moveTo(x, 0);
+    context.lineTo(x, canvas.height);
+    context.stroke();
+  }
+
+  for (let y = 0; y <= canvas.height; y += gridSize) {
+    context.beginPath();
+    context.moveTo(0, y);
+    context.lineTo(canvas.width, y);
+    context.stroke();
+  }
+
+  context.restore();
+}
 
 // Render everything from state
 function render() {
   pen.clearRect(0, 0, canvas.width, canvas.height);
+
+  pen.save();
+  pen.fillStyle = "#ffffff";
+  pen.fillRect(0, 0, canvas.width, canvas.height);
+  pen.restore();
+
+  renderGrid(pen);
 
   for (const layer of state.layers) {
     for (const obj of layer.objects) {
@@ -258,7 +299,7 @@ function render() {
   if (state.mode === "crop" && state.crop.active) {
     drawCropBox();
   }
-} 
+}
 
     // future refrence for rosette, nevile and victoria
     //just uncomment the bottom lines based on your given task
@@ -272,11 +313,18 @@ function drawStroke(stroke) {
   if (!stroke.points || stroke.points.length < 2) return;
 
   pen.save();
-  pen.strokeStyle = stroke.color;
+
+  if (stroke.tool === "erase") {
+    pen.strokeStyle = "#ffffff";
+    pen.globalAlpha = 1;
+  } else {
+    pen.strokeStyle = stroke.color;
+    pen.globalAlpha = stroke.opacity;
+  }
+
   pen.lineWidth = stroke.size;
   pen.lineCap = stroke.shape;
   pen.lineJoin = stroke.shape;
-  pen.globalAlpha = stroke.opacity;
 
   pen.beginPath();
   pen.moveTo(stroke.points[0].x, stroke.points[0].y);
@@ -289,159 +337,92 @@ function drawStroke(stroke) {
   pen.restore();
 }
 
-function drawShape(shapeType) {
-  let shape;
+function assignShapeDrawFunction(shape) {
+  if (shape.shapeType === "rectangle") {
+    shape.draw = function(pen) {
+      pen.save();
+      pen.strokeStyle = this.color;
+      pen.fillStyle = this.color;
 
-  if (shapeType === "rectangle") {
-    shape = {
-      id: createId(),
-      type: "shape",
-      shapeType: "rectangle",
-      x: canvas.width / 2 - 50,
-      y: canvas.height / 2 - 50,
-      width: 100,
-      height: 80,
-      color: state.brush.color,
-      fill: state.brush.fill,
-      rotation: 0,
-      draw: function(pen) {
-        pen.save();
-        pen.strokeStyle = this.color;
+      const centerX = this.x + this.width / 2;
+      const centerY = this.y + this.height / 2;
+
+      pen.translate(centerX, centerY);
+      pen.rotate(this.rotation || 0);
+
+      if (this.fill) {
+        pen.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+      }
+
+      pen.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+      pen.restore();
+    };
+  }
+
+  if (shape.shapeType === "circle") {
+    shape.draw = function(pen) {
+      pen.save();
+      pen.strokeStyle = this.color;
+      pen.beginPath();
+      pen.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+      if (this.fill) {
         pen.fillStyle = this.color;
-
-        const centerX = this.x + this.width / 2;
-        const centerY = this.y + this.height / 2;
-
-        pen.translate(centerX, centerY);
-        pen.rotate(this.rotation || 0);
-
-        if (this.fill) {
-          pen.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-        }
-
-        pen.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
-        pen.restore();
+        pen.fill();
       }
+
+      pen.stroke();
+      pen.restore();
     };
   }
 
-  if (shapeType === "circle") {
-    shape = {
-      id: createId(),
-      type: "shape",
-      shapeType: "circle",
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      radius: 60,
-      color: state.brush.color,
-      fill: state.brush.fill,
-      rotation: 0,
-      draw: function(pen) {
-        pen.save();
-        pen.strokeStyle = this.color;
-        pen.beginPath();
-        pen.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+  if (shape.shapeType === "triangle") {
+    shape.draw = function(pen) {
+      pen.save();
+      pen.strokeStyle = this.color;
+      pen.fillStyle = this.color;
 
-        if (this.fill) {
-          pen.fillStyle = this.color;
-          pen.fill();
-        }
+      const centerX = this.x + this.width / 2;
+      const centerY = this.y + this.height / 2;
 
-        pen.stroke();
-        pen.restore();
+      pen.translate(centerX, centerY);
+      pen.rotate(this.rotation || 0);
+
+      pen.beginPath();
+      pen.moveTo(0, -this.height / 2);
+      pen.lineTo(-this.width / 2, this.height / 2);
+      pen.lineTo(this.width / 2, this.height / 2);
+      pen.closePath();
+
+      if (this.fill) {
+        pen.fill();
       }
+      pen.stroke();
+      pen.restore();
     };
   }
 
-  if (shapeType === "triangle") {
-    shape = {
-      id: createId(),
-      type: "shape",
-      shapeType: "triangle",
-      x: canvas.width / 2 - 50,
-      y: canvas.height / 2 - 50,
-      width: 100,
-      height: 100,
-      color: state.brush.color,
-      fill: state.brush.fill,
-      rotation: 0,
-      draw: function(pen) {
-        pen.save();
-        pen.strokeStyle = this.color;
-        pen.fillStyle = this.color;
+  if (shape.shapeType === "line") {
+    shape.draw = function(pen) {
+      pen.save();
+      pen.strokeStyle = this.color;
 
-        const centerX = this.x + this.width / 2;
-        const centerY = this.y + this.height / 2;
+      const centerX = (this.x + this.x2) / 2;
+      const centerY = (this.y + this.y2) / 2;
 
-        pen.translate(centerX, centerY);
-        pen.rotate(this.rotation || 0);
+      pen.translate(centerX, centerY);
+      pen.rotate(this.rotation || 0);
 
-        pen.beginPath();
-        pen.moveTo(0, -this.height / 2);
-        pen.lineTo(-this.width / 2, this.height / 2);
-        pen.lineTo(this.width / 2, this.height / 2);
-        pen.closePath();
-
-        if (this.fill) {
-          pen.fill();
-        }
-        pen.stroke();
-        pen.restore();
-      }
+      pen.beginPath();
+      pen.moveTo(this.x - centerX, this.y - centerY);
+      pen.lineTo(this.x2 - centerX, this.y2 - centerY);
+      pen.stroke();
+      pen.restore();
     };
   }
 
-  if (shapeType === "line") {
-    shape = {
-      id: createId(),
-      type: "shape",
-      shapeType: "line",
-      x: canvas.width / 2 - 50,
-      y: canvas.height / 2,
-      x2: canvas.width / 2 + 50,
-      y2: canvas.height / 2,
-      color: state.brush.color,
-      fill: state.brush.fill,
-      rotation: 0,
-      draw: function(pen) {
-        pen.save();
-        pen.strokeStyle = this.color;
-
-        const centerX = (this.x + this.x2) / 2;
-        const centerY = (this.y + this.y2) / 2;
-
-        pen.translate(centerX, centerY);
-        pen.rotate(this.rotation || 0);
-
-        pen.beginPath();
-        pen.moveTo(this.x - centerX, this.y - centerY);
-        pen.lineTo(this.x2 - centerX, this.y2 - centerY);
-        pen.stroke();
-        pen.restore();
-      }
-    };
-  }
-
-  getActiveLayer().objects.push(shape);
-  saveHistory();
-  state.selectedId = shape.id;
-  state.mode = "select";
-  updateToolButtons();
-  render();
-}
-
-function createImageObject(src, x, y, width, height) {
-  return {
-    id: createId(),
-    type: "shape",
-    shapeType: "image",
-    x,
-    y,
-    width,
-    height,
-    src,
-    rotation: 0,
-    draw: function(pen) {
+  if (shape.shapeType === "image") {
+    shape.draw = function(pen) {
       if (!this.imageRef) {
         this.imageRef = new Image();
         this.imageRef.src = this.src;
@@ -467,124 +448,209 @@ function createImageObject(src, x, y, width, height) {
       );
 
       pen.restore();
-    }
+    };
+  }
+}
+
+function drawShape(shapeType) {
+  let shape;
+
+  if (shapeType === "rectangle") {
+    shape = {
+      id: createId(),
+      type: "shape",
+      shapeType: "rectangle",
+      x: canvas.width / 2 - 50,
+      y: canvas.height / 2 - 50,
+      width: 100,
+      height: 80,
+      color: state.brush.color,
+      fill: state.brush.fill,
+      rotation: 0
+    };
+  }
+
+  if (shapeType === "circle") {
+    shape = {
+      id: createId(),
+      type: "shape",
+      shapeType: "circle",
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: 60,
+      color: state.brush.color,
+      fill: state.brush.fill,
+      rotation: 0
+    };
+  }
+
+  if (shapeType === "triangle") {
+    shape = {
+      id: createId(),
+      type: "shape",
+      shapeType: "triangle",
+      x: canvas.width / 2 - 50,
+      y: canvas.height / 2 - 50,
+      width: 100,
+      height: 100,
+      color: state.brush.color,
+      fill: state.brush.fill,
+      rotation: 0
+    };
+  }
+
+  if (shapeType === "line") {
+    shape = {
+      id: createId(),
+      type: "shape",
+      shapeType: "line",
+      x: canvas.width / 2 - 50,
+      y: canvas.height / 2,
+      x2: canvas.width / 2 + 50,
+      y2: canvas.height / 2,
+      color: state.brush.color,
+      fill: state.brush.fill,
+      rotation: 0
+    };
+  }
+
+  if (!shape) return;
+
+  assignShapeDrawFunction(shape);
+  getActiveLayer().objects.push(shape);
+  saveHistory();
+  state.selectedId = shape.id;
+  state.mode = "select";
+  updateToolButtons();
+  render();
+}
+
+function createImageObject(src, x, y, width, height) {
+  const imageObj = {
+    id: createId(),
+    type: "shape",
+    shapeType: "image",
+    x,
+    y,
+    width,
+    height,
+    src,
+    rotation: 0
   };
+
+  assignShapeDrawFunction(imageObj);
+  return imageObj;
 }
 
 function restoreShapeFunctions() {
   state.layers.flatMap(layer => layer.objects).forEach(obj => {
     if (obj.type !== "shape") return;
-
-    if (obj.shapeType === "rectangle") {
-      obj.draw = function(pen) {
-        pen.save();
-        const centerX = this.x + this.width / 2;
-        const centerY = this.y + this.height / 2;
-
-        pen.translate(centerX, centerY);
-        pen.rotate(this.rotation || 0);
-
-        pen.strokeStyle = this.color;
-        pen.fillStyle = this.color;
-
-        if (this.fill) {
-          pen.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-        }
-
-        pen.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
-        pen.restore();
-      };
-    }
-
-    if (obj.shapeType === "circle") {
-      obj.draw = function(pen) {
-        pen.save();
-        pen.strokeStyle = this.color;
-        pen.fillStyle = this.color;
-
-        pen.beginPath();
-        pen.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-
-        if (this.fill) pen.fill();
-        pen.stroke();
-        pen.restore();
-      };
-    }
-
-    if (obj.shapeType === "triangle") {
-      obj.draw = function(pen) {
-        pen.save();
-        const centerX = this.x + this.width / 2;
-        const centerY = this.y + this.height / 2;
-
-        pen.translate(centerX, centerY);
-        pen.rotate(this.rotation || 0);
-
-        pen.strokeStyle = this.color;
-        pen.fillStyle = this.color;
-
-        pen.beginPath();
-        pen.moveTo(0, -this.height / 2);
-        pen.lineTo(-this.width / 2, this.height / 2);
-        pen.lineTo(this.width / 2, this.height / 2);
-        pen.closePath();
-
-        if (this.fill) pen.fill();
-        pen.stroke();
-        pen.restore();
-      };
-    }
-
-    if (obj.shapeType === "line") {
-      obj.draw = function(pen) {
-        pen.save();
-        const centerX = (this.x + this.x2) / 2;
-        const centerY = (this.y + this.y2) / 2;
-
-        pen.translate(centerX, centerY);
-        pen.rotate(this.rotation || 0);
-
-        pen.strokeStyle = this.color;
-
-        pen.beginPath();
-        pen.moveTo(this.x - centerX, this.y - centerY);
-        pen.lineTo(this.x2 - centerX, this.y2 - centerY);
-        pen.stroke();
-        pen.restore();
-      };
-    }
-
-    if (obj.shapeType === "image") {
-      obj.draw = function(pen) {
-        if (!this.imageRef) {
-          this.imageRef = new Image();
-          this.imageRef.src = this.src;
-          this.imageRef.onload = () => render();
-        }
-
-        if (!this.imageRef.complete) return;
-
-        pen.save();
-
-        const centerX = this.x + this.width / 2;
-        const centerY = this.y + this.height / 2;
-
-        pen.translate(centerX, centerY);
-        pen.rotate(this.rotation || 0);
-
-        pen.drawImage(
-          this.imageRef,
-          -this.width / 2,
-          -this.height / 2,
-          this.width,
-          this.height
-        );
-
-        pen.restore();
-      };
-    }
+    assignShapeDrawFunction(obj);
   });
 }
+
+function applyZoom() {
+  canvas.style.transform = `scale(${state.zoom})`;
+  canvas.style.transformOrigin = "top center";
+}
+function exportCanvasAsPng() {
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = canvas.width;
+  exportCanvas.height = canvas.height;
+  const exportPen = exportCanvas.getContext("2d");
+
+  exportPen.fillStyle = "#ffffff";
+  exportPen.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+  const gridSize = 25;
+  exportPen.strokeStyle = "#eaeaea";
+  exportPen.lineWidth = 1;
+
+  for (let x = 0; x <= exportCanvas.width; x += gridSize) {
+    exportPen.beginPath();
+    exportPen.moveTo(x, 0);
+    exportPen.lineTo(x, exportCanvas.height);
+    exportPen.stroke();
+  }
+
+  for (let y = 0; y <= exportCanvas.height; y += gridSize) {
+    exportPen.beginPath();
+    exportPen.moveTo(0, y);
+    exportPen.lineTo(exportCanvas.width, y);
+    exportPen.stroke();
+  }
+
+  for (const layer of state.layers) {
+    for (const obj of layer.objects) {
+      if (obj.type === "stroke") {
+        exportPen.save();
+
+        if (obj.tool === "erase") {
+          exportPen.strokeStyle = "#ffffff";
+          exportPen.globalAlpha = 1;
+        } else {
+          exportPen.strokeStyle = obj.color;
+          exportPen.globalAlpha = obj.opacity;
+        }
+
+        exportPen.lineWidth = obj.size;
+        exportPen.lineCap = obj.shape;
+        exportPen.lineJoin = obj.shape;
+
+        exportPen.beginPath();
+        exportPen.moveTo(obj.points[0].x, obj.points[0].y);
+
+        for (let i = 1; i < obj.points.length; i++) {
+          exportPen.lineTo(obj.points[i].x, obj.points[i].y);
+        }
+
+        exportPen.stroke();
+        exportPen.restore();
+      }
+
+      if (obj.type === "shape") {
+        obj.draw(exportPen);
+      }
+    }
+  }
+
+  const link = document.createElement("a");
+  link.href = exportCanvas.toDataURL("image/png");
+  link.download = "visualgrid.png";
+  link.click();
+}
+
+addLayerBtn.addEventListener("click", () => {
+  const newLayer = {
+    id: crypto.randomUUID(),
+    name: "Layer " + (state.layers.length + 1),
+    objects: []
+  };
+
+  state.layers.push(newLayer);
+  state.activeLayerId = newLayer.id;
+  state.selectedId = null;
+
+  saveHistory();
+  render();
+});
+
+deleteLayerBtn.addEventListener("click", () => {
+  if (state.layers.length <= 1) return;
+
+  const deletedLayerId = state.activeLayerId;
+  const selectedRecord = state.selectedId ? getObjectRecordById(state.selectedId) : null;
+
+  state.layers = state.layers.filter(layer => layer.id !== deletedLayerId);
+  state.activeLayerId = state.layers[state.layers.length - 1].id;
+
+  if (selectedRecord && selectedRecord.layer.id === deletedLayerId) {
+    state.selectedId = null;
+  }
+
+  saveHistory();
+  render();
+});
 
 // Event listeners
 addRectBtn.addEventListener("click", () => drawShape("rectangle"));
@@ -600,6 +666,7 @@ fillToggle.addEventListener("change", (e) => {
 
 function drawSelection(obj) {
   const b = getBounds(obj);
+  if (!b) return;
 
   pen.strokeStyle = "blue";
   pen.lineWidth = 2;
@@ -614,10 +681,10 @@ function drawSelection(obj) {
   const size = 8;
 
   const corners = [
-    { x: b.minX, y: b.minY }, // top left
-    { x: b.maxX, y: b.minY }, // top right
-    { x: b.minX, y: b.maxY }, // bottom left
-    { x: b.maxX, y: b.maxY }  // bottom right
+    { x: b.minX, y: b.minY },
+    { x: b.maxX, y: b.minY },
+    { x: b.minX, y: b.maxY },
+    { x: b.maxX, y: b.maxY }
   ];
 
   pen.fillStyle = "white";
@@ -625,7 +692,7 @@ function drawSelection(obj) {
 
   corners.forEach(c => {
     pen.beginPath();
-    pen.rect(c.x - size/2, c.y - size/2, size, size);
+    pen.rect(c.x - size / 2, c.y - size / 2, size, size);
     pen.fill();
     pen.stroke();
   });
@@ -662,6 +729,8 @@ function drawCropBox() {
 // if clicked on corner
 function getResizeHandle(obj, x, y) {
   const b = getBounds(obj);
+  if (!b) return null;
+
   const size = 10;
 
   const handles = {
@@ -691,7 +760,9 @@ function saveHistory() {
   history = history.slice(0, historyIndex + 1);
   history.push(JSON.stringify({
     layers: state.layers,
-    canvas: state.canvas
+    canvas: state.canvas,
+    activeLayerId: state.activeLayerId,
+    zoom: state.zoom
   }));
   historyIndex++;
 }
@@ -703,9 +774,12 @@ function undo() {
   const savedState = JSON.parse(history[historyIndex]);
   state.layers = savedState.layers;
   state.canvas = savedState.canvas ?? state.canvas;
+  state.activeLayerId = savedState.activeLayerId ?? state.layers[0].id;
+  state.zoom = savedState.zoom ?? 1;
   canvas.width = state.canvas.width;
   canvas.height = state.canvas.height;
-  restoreShapeFunctions(); 
+  restoreShapeFunctions();
+  applyZoom();
   state.selectedId = null;
 
   render();
@@ -718,9 +792,12 @@ function redo() {
   const savedState = JSON.parse(history[historyIndex]);
   state.layers = savedState.layers;
   state.canvas = savedState.canvas ?? state.canvas;
+  state.activeLayerId = savedState.activeLayerId ?? state.layers[0].id;
+  state.zoom = savedState.zoom ?? 1;
   canvas.width = state.canvas.width;
   canvas.height = state.canvas.height;
-  restoreShapeFunctions(); 
+  restoreShapeFunctions();
+  applyZoom();
   state.selectedId = null;
 
   render();
@@ -728,21 +805,18 @@ function redo() {
 
 function getRotateHandle(obj, x, y) {
   const b = getBounds(obj);
+  if (!b) return false;
 
   const handleX = (b.minX + b.maxX) / 2;
   const handleY = b.minY - 25;
   const size = 10;
 
-  if (
+  return (
     x >= handleX - size &&
     x <= handleX + size &&
     y >= handleY - size &&
     y <= handleY + size
-  ) {
-    return true;
-  }
-
-  return false;
+  );
 }
 
 function updateToolButtons() {
@@ -850,6 +924,18 @@ resizeCanvasBtn.addEventListener("click", () => {
   render();
 });
 
+zoomInBtn.addEventListener("click", () => {
+  state.zoom = Math.min(3, +(state.zoom + 0.1).toFixed(2));
+  applyZoom();
+});
+
+zoomOutBtn.addEventListener("click", () => {
+  state.zoom = Math.max(0.4, +(state.zoom - 0.1).toFixed(2));
+  applyZoom();
+});
+
+savePngBtn.addEventListener("click", exportCanvasAsPng);
+
 importImageInput.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -916,6 +1002,7 @@ function cropCanvas() {
 
     for (const obj of layer.objects) {
       const bounds = getBounds(obj);
+      if (!bounds) continue;
 
       const intersects =
         bounds.maxX >= x &&
@@ -984,14 +1071,14 @@ function cropCanvas() {
 
 function toggleDropdown(id) {
   const el = document.getElementById(id);
-  const wasOpen = el.classList.contains('open');
-  document.querySelectorAll('.drop-wrap').forEach(d => d.classList.remove('open'));
-  if (!wasOpen) el.classList.add('open');
+  const wasOpen = el.classList.contains("open");
+  document.querySelectorAll(".drop-wrap").forEach(d => d.classList.remove("open"));
+  if (!wasOpen) el.classList.add("open");
 }
 
-document.addEventListener('click', e => {
-  if (!e.target.closest('.drop-wrap')) {
-    document.querySelectorAll('.drop-wrap').forEach(d => d.classList.remove('open'));
+document.addEventListener("click", e => {
+  if (!e.target.closest(".drop-wrap")) {
+    document.querySelectorAll(".drop-wrap").forEach(d => d.classList.remove("open"));
   }
 });
 
@@ -1012,7 +1099,8 @@ canvas.addEventListener("mousedown", (event) => {
   }
 
   if (state.mode === "select") {
-    const selectedObj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    const record = state.selectedId ? getObjectRecordById(state.selectedId) : null;
+    const selectedObj = record?.obj || null;
 
     if (selectedObj && selectedObj.type === "shape") {
       const rotateClicked = getRotateHandle(selectedObj, pos.x, pos.y);
@@ -1040,11 +1128,12 @@ canvas.addEventListener("mousedown", (event) => {
       }
     }
 
-    const clicked = getObjectAt(pos.x, pos.y);
+    const clickedRecord = getObjectAt(pos.x, pos.y);
 
     // if user clicked an existing object
-    if (clicked) {
-      state.selectedId = clicked.id;
+    if (clickedRecord) {
+      state.selectedId = clickedRecord.obj.id;
+      state.activeLayerId = clickedRecord.layer.id;
       dragging = true;
       dragStart = pos;
 
@@ -1084,6 +1173,7 @@ canvas.addEventListener("mousedown", (event) => {
   getActiveLayer().objects.push({
     id: strokeId,
     type: "stroke",
+    tool: state.currentTool,
     color: strokeColor,
     size: strokeSize,
     shape: state.brush.shape,
@@ -1111,9 +1201,8 @@ canvas.addEventListener("mousemove", (event) => {
   if (state.mode !== "select") {
     // DRAWING (original behaviour)
     if (state.drawing.isDrawing) {
-      const activeStroke = state.layers.flatMap(layer => layer.objects).find(
-        obj => obj.id === state.drawing.activeStrokeId
-      );
+      const activeRecord = getObjectRecordById(state.drawing.activeStrokeId);
+      const activeStroke = activeRecord?.obj || null;
 
       if (!activeStroke) return;
 
@@ -1127,7 +1216,8 @@ canvas.addEventListener("mousemove", (event) => {
   }
 
   if (rotating && state.selectedId) {
-    const obj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    const record = getObjectRecordById(state.selectedId);
+    const obj = record?.obj || null;
 
     if (obj && obj.type === "shape") {
       const center = getObjectCenter(obj);
@@ -1141,7 +1231,8 @@ canvas.addEventListener("mousemove", (event) => {
   }
 
   if (resizing && state.selectedId) {
-    const obj = state.layers.flatMap(layer => layer.objects).find(o => o.id === state.selectedId);
+    const record = getObjectRecordById(state.selectedId);
+    const obj = record?.obj || null;
 
     if (!obj) return;
 
@@ -1189,9 +1280,8 @@ canvas.addEventListener("mousemove", (event) => {
 
   // DRAGGING OBJECT
   if (dragging && state.selectedId) {
-    const obj = state.layers.flatMap(layer => layer.objects).find(
-      o => o.id === state.selectedId
-    );
+    const record = getObjectRecordById(state.selectedId);
+    const obj = record?.obj || null;
 
     if (!obj) return;
 
@@ -1250,7 +1340,6 @@ window.addEventListener("mouseup", () => {
   erasing = false;
 });
 
-
 // UI controls
 colorPicker.addEventListener("change", (e) => {
   state.brush.color = e.target.value;
@@ -1277,9 +1366,10 @@ clearButton.addEventListener("click", () => {
 function deleteSelected() {
   if (!state.selectedId) return;
 
-  for (const layer of state.layers) {
-    layer.objects = layer.objects.filter(o => o.id !== state.selectedId);
-  }
+  const record = getObjectRecordById(state.selectedId);
+  if (!record) return;
+
+  record.layer.objects = record.layer.objects.filter(o => o.id !== state.selectedId);
   state.selectedId = null;
   saveHistory();
 
@@ -1295,14 +1385,8 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-
 // Save project
 // popup elements
-const savePopup = document.getElementById("savePopup");
-const projectNameInput = document.getElementById("projectNameInput");
-const saveConfirmBtn = document.getElementById("saveConfirmBtn");
-const saveCancelBtn = document.getElementById("saveCancelBtn");
-
 // open popup
 saveProjectBtn.addEventListener("click", () => {
   projectNameInput.value = "";
@@ -1311,7 +1395,7 @@ saveProjectBtn.addEventListener("click", () => {
 
 // save project
 saveConfirmBtn.addEventListener("click", () => {
-  const name = projectNameInput.value;
+  const name = projectNameInput.value || "visualgrid-project";
   const data = JSON.stringify(state, null, 2);
   const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -1331,8 +1415,8 @@ saveCancelBtn.addEventListener("click", () => {
   savePopup.style.display = "none";
 });
 
-document.getElementById("undoBtn").addEventListener("click", undo);
-document.getElementById("redoBtn").addEventListener("click", redo);
+undoBtn.addEventListener("click", undo);
+redoBtn.addEventListener("click", redo);
 
 // Load project
 loadProjectInput.addEventListener("change", async (e) => {
@@ -1351,9 +1435,11 @@ loadProjectInput.addEventListener("change", async (e) => {
   state.layers = loadedData.layers;
   state.activeLayerId = loadedData.activeLayerId ?? state.layers[0].id;
   state.canvas = loadedData.canvas ?? state.canvas;
+  state.zoom = loadedData.zoom ?? 1;
   canvas.width = state.canvas.width;
   canvas.height = state.canvas.height;
   restoreShapeFunctions();
+  applyZoom();
   state.selectedId = loadedData.selectedId ?? null;
   state.mode = loadedData.mode ?? "draw";
   state.currentTool = loadedData.currentTool ?? "paint";
