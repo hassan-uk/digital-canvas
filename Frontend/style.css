@@ -327,3 +327,37 @@ canvas {
   accent-color: #5a3f3f;
   cursor: pointer;
 }
+
+.layerItem.active {
+  background-color: #795252;
+  color: white;
+}
+
+.layerItem.active i {
+  color: white;
+}
+
+
+.iconRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.iconRow i {
+  font-size: 14px;
+}
+
+.layerActions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.layerActions button {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 10px;
+}

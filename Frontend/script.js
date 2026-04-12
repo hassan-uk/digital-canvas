@@ -289,6 +289,7 @@ function render() {
   renderGrid(pen);
 
   for (const layer of state.layers) {
+    if (layer.visible === false) continue;
     for (const obj of layer.objects) {
       if (obj.type === "stroke") drawStroke(obj);
       if (obj.type === "shape") obj.draw(pen);
@@ -299,6 +300,7 @@ function render() {
   if (state.mode === "crop" && state.crop.active) {
     drawCropBox();
   }
+  renderLayerPanel();
 }
 
     // future refrence for rosette, nevile and victoria
@@ -306,6 +308,53 @@ function render() {
     
     // if (obj.type === "text") drawText(obj);
     // if (obj.type === "image") drawImage(obj);
+
+function renderLayerPanel() {
+  const panel = document.getElementById("layerPanel");
+  panel.onclick = (e) => {
+  e.stopPropagation();
+};
+  const buttons = panel.querySelectorAll("#addLayerBtn, #deleteLayerBtn");
+  panel.innerHTML = "";
+  const topRow = document.createElement("div");
+  topRow.className = "layerActions";
+
+  buttons.forEach(el => topRow.appendChild(el));
+  panel.appendChild(topRow);
+
+  // show top layer first
+  [...state.layers].reverse().forEach(layer => {
+    const div = document.createElement("div");
+    div.className = "layerItem";
+
+    if (layer.id === state.activeLayerId) {
+      div.classList.add("active");
+    }
+
+    div.innerHTML = `
+      <span>${layer.name}</span>
+      <button>
+         <i class="bi ${layer.visible ? "bi-eye" : "bi-eye-slash"}"></i>
+      </button>
+    `;
+
+    // click = select layer
+    div.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.activeLayerId = layer.id;
+      render();
+    });
+
+    // button = toggle visibility
+    div.querySelector("button").addEventListener("click", (e) => {
+      e.stopPropagation();
+      layer.visible = !layer.visible;
+      render();
+    });
+
+    panel.appendChild(div);
+  });
+}
 
 
 // this draws pen strokes
@@ -624,6 +673,7 @@ addLayerBtn.addEventListener("click", () => {
   const newLayer = {
     id: crypto.randomUUID(),
     name: "Layer " + (state.layers.length + 1),
+    visible: true,
     objects: []
   };
 

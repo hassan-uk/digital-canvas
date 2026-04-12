@@ -24,6 +24,7 @@ export const state = {
     {
       id: "layer1",
       name: "Layer 1",
+      visible: true,
       objects: []
     }
   ],

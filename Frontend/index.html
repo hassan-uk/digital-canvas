@@ -40,8 +40,6 @@
       <div class="drop-menu">
         <button class="drop-item" id="selectBtn">Select</button>
         <button class="drop-item" id="deleteBtn">Delete Selected</button>
-        <button class="drop-item" id="addLayerBtn">Add Layer</button>
-        <button class="drop-item" id="deleteLayerBtn">Delete Layer</button>
         <button class="drop-item" id="cropBtn">Crop</button>
         <button class="drop-item" id="resizeCanvasBtn">Resize Canvas</button>
       </div>
@@ -63,6 +61,21 @@
       </div>
     </div>
 
+    <div class="drop-wrap" id="drop-layers">
+       <button class="tool-btn" onclick="toggleDropdown('drop-layers')">Layers</button>
+       <div class="drop-menu" id="layerPanel">
+         <button class="drop-item iconRow" id="addLayerBtn">
+           <i class="bi bi-plus-lg"></i>
+          <span>Add </span>
+         </button>
+         <button class="drop-item iconRow" id="deleteLayerBtn">
+           <i class="bi bi-trash"></i>
+           <span>Delete</span>
+        </button>
+         <div class="divider"></div>
+       </div>
+   </div>
+
     <div class="divider"></div>
 
     <button class="smallBtn" id="zoomOutBtn"><i class="bi bi-zoom-out"></i></button>
@@ -74,7 +87,9 @@
     <button id="clearButton">Clear</button>
   </div>
 
-  <canvas id="canvas" width="1200" height="630"></canvas>
+  <div class="mainLayout">
+    <canvas id="canvas" width="1200" height="630"></canvas>
+  </div>
 
   <div id="savePopup" class="savePopup">
     <div class="popup-content">
