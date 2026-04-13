@@ -357,16 +357,23 @@ function renderLayerPanel() {
 }
 
 
-// this draws pen strokes
 function drawStroke(stroke) {
   if (!stroke.points || stroke.points.length < 2) return;
 
   pen.save();
 
   if (stroke.tool === "erase") {
-    pen.strokeStyle = "#ffffff";
-    pen.globalAlpha = 1;
+    const activeLayer = getActiveLayer();
+
+  // Only erase if this stroke belongs to active layer
+  if (!activeLayer.objects.includes(stroke)) {
+    return; // skip erase on other layers
+  }
+    
+    pen.globalCompositeOperation = "destination-out";
+    pen.strokeStyle = "rgba(0,0,0,1)";
   } else {
+    pen.globalCompositeOperation = "source-over";
     pen.strokeStyle = stroke.color;
     pen.globalAlpha = stroke.opacity;
   }
