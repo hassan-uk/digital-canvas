@@ -98,6 +98,15 @@ state.currentTool = "paint";
 
 canvas.width = state.canvas.width;
 canvas.height = state.canvas.height;
+
+state.layers.forEach(layer => {
+  if (!layer.canvas) {
+    layer.canvas = document.createElement("canvas");
+    layer.canvas.width = canvas.width;
+    layer.canvas.height = canvas.height;
+    layer.ctx = layer.canvas.getContext("2d");
+  }
+});
 applyZoom();
 
 function getActiveLayer() {
@@ -376,14 +385,25 @@ function render() {
   renderGrid(pen);
 
   for (const layer of state.layers) {
-    if (layer.visible === false) continue;
-    for (const obj of layer.objects) {
-      if (obj.type === "stroke") drawStroke(obj);
-      if (obj.type === "shape") obj.draw(pen);
-      if (obj.type === "text") drawText(obj);
-      if (state.selectedId === obj.id) drawSelection(obj);
-    }
+  if (!layer.visible) continue;
+
+  const ctx = layer.ctx;
+
+  // clear layer canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // draw objects onto THIS layer only
+  for (const obj of layer.objects) {
+    if (obj.type === "stroke") drawStrokeOnContext(ctx, obj);
+    if (obj.type === "shape") obj.draw(ctx);
+    if (obj.type === "text") drawTextOnContext(ctx, obj);
+
+    if (state.selectedId === obj.id) drawSelection(obj);
   }
+
+  // now draw this layer onto main canvas
+  pen.drawImage(layer.canvas, 0, 0);
+}
 
   if (state.mode === "crop" && state.crop.active) {
     drawCropBox();
@@ -446,41 +466,35 @@ function renderLayerPanel() {
 }
 
 
-function drawStroke(stroke) {
+function drawStrokeOnContext(ctx, stroke) {
   if (!stroke.points || stroke.points.length < 2) return;
 
-  pen.save();
+  ctx.save();
 
   if (stroke.tool === "erase") {
-    const activeLayer = getActiveLayer();
-
-  // Only erase if this stroke belongs to active layer
-  if (!activeLayer.objects.includes(stroke)) {
-    return; // skip erase on other layers
-  }
-    
-    pen.globalCompositeOperation = "destination-out";
-    pen.strokeStyle = "rgba(0,0,0,1)";
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.strokeStyle = "rgba(0,0,0,1)";
   } else {
-    pen.globalCompositeOperation = "source-over";
-    pen.strokeStyle = stroke.color;
-    pen.globalAlpha = stroke.opacity;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = stroke.color;
+    ctx.globalAlpha = stroke.opacity;
   }
 
-  pen.lineWidth = stroke.size;
-  pen.lineCap = stroke.shape;
-  pen.lineJoin = stroke.shape;
+  ctx.lineWidth = stroke.size;
+  ctx.lineCap = stroke.shape;
+  ctx.lineJoin = stroke.shape;
 
-  pen.beginPath();
-  pen.moveTo(stroke.points[0].x, stroke.points[0].y);
+  ctx.beginPath();
+  ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
 
   for (let i = 1; i < stroke.points.length; i++) {
-    pen.lineTo(stroke.points[i].x, stroke.points[i].y);
+    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
   }
 
-  pen.stroke();
-  pen.restore();
+  ctx.stroke();
+  ctx.restore();
 }
+
 
 function drawText(obj) {
   pen.save();
@@ -508,7 +522,6 @@ function drawText(obj) {
 
   const width = pen.measureText(obj.text).width;
 
-  // ✅ UNDERLINE
   if (obj.underline) {
     pen.beginPath();
     pen.moveTo(drawX, drawY + 4);
@@ -518,17 +531,46 @@ function drawText(obj) {
     pen.stroke();
   }
 
-  // ✅ STRIKETHROUGH
-  if (obj.strikethrough) {
-    pen.beginPath();
-    pen.moveTo(drawX, drawY - obj.fontSize / 3);
-    pen.lineTo(drawX + width, drawY - obj.fontSize / 3);
-    pen.strokeStyle = obj.color;
-    pen.lineWidth = obj.fontSize / 15;
-    pen.stroke();
+  pen.restore();
+}
+
+
+function drawTextOnContext(ctx, obj) {
+  ctx.save();
+
+  let font = "";
+  if (obj.bold) font += "bold ";
+  if (obj.italic) font += "italic ";
+  font += `${obj.fontSize}px ${obj.fontFamily}`;
+
+  ctx.font = font;
+  ctx.fillStyle = obj.color;
+  ctx.textAlign = obj.align || "left";
+
+  let drawX = obj.x;
+  let drawY = obj.y;
+
+  if (obj.rotation) {
+    ctx.translate(obj.x, obj.y);
+    ctx.rotate(obj.rotation);
+    drawX = 0;
+    drawY = 0;
   }
 
-  pen.restore();
+  ctx.fillText(obj.text, drawX, drawY);
+
+  const width = ctx.measureText(obj.text).width;
+
+  if (obj.underline) {
+    ctx.beginPath();
+    ctx.moveTo(drawX, drawY + 4);
+    ctx.lineTo(drawX + width, drawY + 4);
+    ctx.strokeStyle = obj.color;
+    ctx.lineWidth = obj.fontSize / 15;
+    ctx.stroke();
+  }
+
+  ctx.restore();
 }
 
 function assignShapeDrawFunction(shape) {
@@ -830,12 +872,19 @@ function applyAlignToSelected() {
   }
 }
 
+
 addLayerBtn.addEventListener("click", () => {
+  const newCanvas = document.createElement("canvas");
+  newCanvas.width = canvas.width;
+  newCanvas.height = canvas.height;
+
   const newLayer = {
     id: crypto.randomUUID(),
     name: "Layer " + (state.layers.length + 1),
     visible: true,
-    objects: []
+    objects: [],
+    canvas: newCanvas,
+    ctx: newCanvas.getContext("2d")
   };
 
   state.layers.push(newLayer);
