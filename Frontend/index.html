@@ -9,7 +9,6 @@
 <body>
   <h1>VisualGrid</h1>
 
-  <!-- Toolbar  -->
   <div class="toolbar">
     <button class="smallBtn" id="paintBtn" title="Paintbrush (P)">P</button>
     <button class="smallBtn" id="highlightBtn" title="Highlighter (H)">H</button>
@@ -21,6 +20,44 @@
     <input type="range" id="brushSize" title="Change brush size" min="1" max="25" value="5">
 
     <div class="divider"></div>
+
+    <div class="dropdown">
+      <button id="addTextBtn" class="smallBtn">Text ▼</button>
+
+      <div class="dropdown-menu">
+        <select id="fontFamily">
+          <option value="Arial">Arial</option>
+          <option value="Verdana">Verdana</option>
+          <option value="Helvetica">Helvetica</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Trebuchet MS">Trebuchet MS</option>
+          <option value="Impact">Impact</option>
+          <option value="Comic Sans MS">Comic Sans</option>
+          <option value="Palatino Linotype">Palatino</option>
+          <option value="Garamond">Garamond</option>
+          <option value="Bookman Old Style">Bookman</option>
+          <option value="Tahoma">Tahoma</option>
+          <option value="Lucida Console">Lucida Console</option>
+          <option value="Monaco">Monaco</option>
+        </select>
+
+        <input type="number" id="fontSize" value="20" min="8" max="100">
+
+        <div class="textButtons">
+          <button id="boldBtn">Bold</button>
+          <button id="italicBtn">Italic</button>
+          <button id="underlineBtn">Underline</button>
+        </div>
+
+        <div class="textButtons">
+          <button id="alignLeftBtn">Left</button>
+          <button id="alignCenterBtn">Center</button>
+          <button id="alignRightBtn">Right</button>
+        </div>
+      </div>
+    </div>
 
     <div class="drop-wrap" id="drop-shapes">
       <button class="tool-btn" onclick="toggleDropdown('drop-shapes')" title="Insert shapes">Shapes</button>
@@ -38,46 +75,64 @@
 
     <div class="drop-wrap" id="drop-edit">
       <button class="tool-btn" onclick="toggleDropdown('drop-edit')">Edit</button>
-        <div class="drop-menu">
-          <button class ="drop-item" id="selectBtn">Select</button>
-          <button class ="drop-item" id="deleteBtn">Delete Selected</button>
-          <button class ="drop-item" id="addLayerBtn">Add Layer</button>
-          <button class ="drop-item" id="deleteLayerBtn">Delete Layer</button>
-          <button class ="drop-item" id="cropBtn">Crop</button>
-          <button class ="drop-item" id="resizeCanvasBtn" title="Change canvas size (Ctrl+R)">Resize Canvas</button>
-        </div>
+      <div class="drop-menu">
+        <button class="drop-item" id="selectBtn">Select</button>
+        <button class="drop-item" id="deleteBtn">Delete Selected</button>
+        <button class="drop-item" id="cropBtn">Crop</button>
+        <button class="drop-item" id="resizeCanvasBtn" title="Change canvas size (Ctrl+R)">Resize Canvas</button>
+      </div>
     </div>
-    
+
     <div class="drop-wrap" id="drop-file">
       <button class="tool-btn" onclick="toggleDropdown('drop-file')">File</button>
-        <div class="drop-menu">
-          <label class="fileLabel">
-            Import Image
-            <input type="file" id="importImageInput" accept="image/*">
-          </label>
-          <label class="fileLabel">
-            Load Project
-            <input type="file" id="loadProjectInput" accept="application/json">
-          </label>
-          <button id="saveProjectBtn" title="Save to device (Ctrl+S)">Save Project</button>
-        </div>
+      <div class="drop-menu">
+        <label class="fileLabel">
+          Import Image
+          <input type="file" id="importImageInput" accept="image/*">
+        </label>
+        <label class="fileLabel">
+          Load Project
+          <input type="file" id="loadProjectInput" accept="application/json">
+        </label>
+        <button id="saveProjectBtn">Save Project</button>
+        <button id="savePngBtn">Save PNG</button>
+      </div>
+    </div>
+
+    <div class="drop-wrap" id="drop-layers">
+      <button class="tool-btn" onclick="toggleDropdown('drop-layers')">Layers</button>
+      <div class="drop-menu" id="layerPanel">
+        <button class="drop-item iconRow" id="addLayerBtn">
+          <i class="bi bi-plus-lg"></i>
+          <span>Add</span>
+        </button>
+        <button class="drop-item iconRow" id="deleteLayerBtn">
+          <i class="bi bi-trash"></i>
+          <span>Delete</span>
+        </button>
+        <div class="divider"></div>
+      </div>
     </div>
 
     <div class="divider"></div>
+
+    <button class="smallBtn" id="zoomOutBtn"><i class="bi bi-zoom-out"></i></button>
+    <button class="smallBtn" id="zoomInBtn"><i class="bi bi-zoom-in"></i></button>
+
     <button class="smallBtn" id="undoBtn" title="Undo (Ctrl+Z)"><i class="bi bi-arrow-counterclockwise"></i></button>
     <button class="smallBtn" id="redoBtn" title="Redo (Ctrl+Y)"><i class="bi bi-arrow-clockwise"></i></button>
-    
+
     <button id="clearButton">Clear</button>
   </div>
 
-  <!-- Canvas stays centered because it's on its own line -->
-  <canvas id="canvas" width="1200" height="630"></canvas>
+  <div class="mainLayout">
+    <canvas id="canvas" width="1200" height="630"></canvas>
+  </div>
 
-  <!-- Save Project Popup -->
   <div id="savePopup" class="savePopup">
     <div class="popup-content">
       <h2>Save Your Project</h2>
-      <input type="text" id="projectNameInput" placeholder="Enter project name" />
+      <input type="text" id="projectNameInput" placeholder="Enter project name">
       <div class="popup-buttons">
         <button id="saveConfirmBtn">Save</button>
         <button id="saveCancelBtn">Cancel</button>
@@ -85,7 +140,6 @@
     </div>
   </div>
 
-  <!-- type="module" allows us to import from state.js -->
   <script type="module" src="script.js"></script>
 
   <!-- shortcut library -->
@@ -115,10 +169,6 @@
 
     shortcut.add("Ctrl+R", function() {
       document.getElementById("resizeCanvasBtn").click();
-    })
-
-    shortcut.add("Ctrl+S", function() {
-      document.getElementById("saveProjectBtn").click();
     })
   </script>
 

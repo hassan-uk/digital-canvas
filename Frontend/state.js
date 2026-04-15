@@ -20,21 +20,11 @@ export const state = {
     opacity: 1
   },
 
-  /*
-    objects[] = EVERYTHING on the canvas stored as data.
-
-    For now, we store only pen strokes as:
-    { type: "stroke", color, size, points: [{x,y}, ...] }
-
-    Later team members will add:
-     shapes: { type: "shape", shapeType: "triangle", x, y, w, h, ... }
-     text:   { type: "text", value, x, y, font, ... }
-     images: { type: "image", src, x, y, w, h }
-  */
   layers: [
     {
       id: "layer1",
       name: "Layer 1",
+      visible: true,
       objects: []
     }
   ],
@@ -54,15 +44,18 @@ export const state = {
     currentY: 0
   },
 
+  zoom: 1,
+
   selectedId: null,
 
   mode: "draw",
 
   currentTool: "paint",
 
-  // Used while the user is currently drawing
   drawing: {
     isDrawing: false,
     activeStrokeId: null
-  }
+  },
+
+  lastMousePos: null
 };

@@ -20,29 +20,27 @@ h1 {
   gap: 15px;
   align-items: center;
   flex-wrap: wrap;
-  
   background: white;
-  padding: 15px;
   border-radius: 20px;
   width: fit-content;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.divider{
-  width:1px;
-  height:28px;
-  background:#ddd;
+.divider {
+  width: 1px;
+  height: 28px;
+  background: #ddd;
 }
 
 .toolbar button {
   width: 100px;
-  height: 40px;         
-  background-color: #5a3f3f;  
-  color: white;          
+  height: 40px;
+  background-color: #5a3f3f;
+  color: white;
   border: none;
   border-radius: 6px;
   font-family: Segoe UI, 'Helvetica', Arial, sans-serif;
-  font-weight: 500; 
+  font-weight: 500;
   line-height: 15px;
   font-size: 15px;
   cursor: pointer;
@@ -89,16 +87,14 @@ h1 {
 canvas {
   background: white;
   border: 2px solid black;
-  cursor: crosshair;
+  cursor: none;
   display: block;
   margin: 0 auto 30px auto;
   box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-
   background-image:
     linear-gradient(#eaeaea 1px, transparent 1px),
     linear-gradient(90deg, #eaeaea 1px, transparent 1px);
   background-size: 25px 25px;
-
 }
 
 .fileLabel {
@@ -106,20 +102,20 @@ canvas {
   align-items: center;
   flex-wrap: wrap;
   display: flex;
-  width: 110px;         
-  height: 40px;         
-  background-color: #5a3f3f; 
-  color: white;          
+  width: 110px;
+  height: 40px;
+  background-color: #5a3f3f;
+  color: white;
   border: none;
   border-radius: 6px;
   font-size: 15px;
   font-family: Segoe UI, 'Helvetica', Arial, sans-serif;
-  font-weight: 500; 
+  font-weight: 500;
   line-height: 15px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 3px 6px rgba(0,0,0,0.15);
-  text-align: center; 
+  text-align: center;
 }
 
 .fileLabel input {
@@ -131,10 +127,9 @@ canvas {
   transform: translateY(-2px);
 }
 
-
 /* Save Project Popup */
 .savePopup {
-  display: none; 
+  display: none;
   position: fixed;
   top: 0;
   left: 0;
@@ -202,18 +197,32 @@ canvas {
   box-shadow: none;
 }
 
-.tool-btn:hover { background: #f0ede8; transform: none; }
-.tool-btn.active, .tool-btn.activeTool { background: #f5ece8; color: #8b3a2a; }
-.tool-btn.primary { background: #2c2c2c; color: white; }
-.tool-btn.primary:hover { background: #444; }
+.tool-btn:hover {
+  background: #f0ede8;
+  transform: none;
+}
 
+.tool-btn.active,
+.tool-btn.activeTool {
+  background: #f5ece8;
+  color: #8b3a2a;
+}
+
+.tool-btn.primary {
+  background: #2c2c2c;
+  color: white;
+}
+
+.tool-btn.primary:hover {
+  background: #444;
+}
 
 .drop-wrap {
   position: relative;
 }
 
 .drop-wrap .drop-menu {
-  display: none; 
+  display: none;
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
@@ -224,21 +233,6 @@ canvas {
   min-width: max-content;
   z-index: 1000;
   flex-direction: column;
-}
-
-.toolbar button {
-  width: 100px;
-  height: 40px;
-  background-color: #5a3f3f;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-family: 'Segoe UI', sans-serif;
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
 }
 
 #drop-edit .drop-item {
@@ -314,9 +308,116 @@ canvas {
   white-space: nowrap;
   box-sizing: border-box;
   text-align: left;
-  box-sizing: border-box;
 }
-.drop-item:hover { background: #f0ede8; }
-.drop-item.danger:hover { background: #fcecea; color: #b93a3a; }
-.drop-item input[type="file"] { display: none; }
-.drop-item input[type="checkbox"] { accent-color: #5a3f3f; cursor: pointer; }
+
+.drop-item:hover {
+  background: #f0ede8;
+}
+
+.drop-item.danger:hover {
+  background: #fcecea;
+  color: #b93a3a;
+}
+
+.drop-item input[type="file"] {
+  display: none;
+}
+
+.drop-item input[type="checkbox"] {
+  accent-color: #5a3f3f;
+  cursor: pointer;
+}
+
+.layerItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+
+.layerItem button {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+
+.layerItem.active {
+  background-color: #2c76e6;
+  color: white;
+}
+
+.layerItem.active i {
+  color: white;
+}
+
+.iconRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.iconRow i {
+  font-size: 14px;
+}
+
+.layerActions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.layerActions button {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  background: #2a2a2a;
+  padding: 10px;
+  border-radius: 8px;
+  z-index: 1000;
+  min-width: 200px;
+}
+
+.dropdown-menu.open {
+  display: block;
+}
+
+.textButtons {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.textButtons button {
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+#fontFamily,
+#fontSize {
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.mainLayout {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
