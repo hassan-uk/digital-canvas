@@ -22,38 +22,42 @@
     <div class="divider"></div>
 
     <div class="dropdown">
-  <button id="addTextBtn" class="smallBtn">Text ▼</button>
+      <button id="addTextBtn" class="smallBtn">Text ▼</button>
 
-  <div class="dropdown-menu">
-    
-    <!-- FONT -->
-    <select id="fontFamily">
-      <option value="Arial">Arial</option>
-      <option value="Verdana">Verdana</option>
-      <option value="Times New Roman">Times</option>
-      <option value="Courier New">Courier</option>
-    </select>
+      <div class="dropdown-menu">
+        <select id="fontFamily">
+          <option value="Arial">Arial</option>
+          <option value="Verdana">Verdana</option>
+          <option value="Helvetica">Helvetica</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Trebuchet MS">Trebuchet MS</option>
+          <option value="Impact">Impact</option>
+          <option value="Comic Sans MS">Comic Sans</option>
+          <option value="Palatino Linotype">Palatino</option>
+          <option value="Garamond">Garamond</option>
+          <option value="Bookman Old Style">Bookman</option>
+          <option value="Tahoma">Tahoma</option>
+          <option value="Lucida Console">Lucida Console</option>
+          <option value="Monaco">Monaco</option>
+        </select>
 
-    <!-- SIZE -->
-    <input type="number" id="fontSize" value="20" min="8" max="100">
+        <input type="number" id="fontSize" value="20" min="8" max="100">
 
-    <!-- STYLE BUTTONS -->
-    <div class="textButtons">
-      <button id="boldBtn">B</button>
-      <button id="italicBtn">I</button>
-      <button id="underlineBtn">U</button>
-      <button id="strikethroughBtn">S</button>
+        <div class="textButtons">
+          <button id="boldBtn">Bold</button>
+          <button id="italicBtn">Italic</button>
+          <button id="underlineBtn">Underline</button>
+        </div>
+
+        <div class="textButtons">
+          <button id="alignLeftBtn">Left</button>
+          <button id="alignCenterBtn">Center</button>
+          <button id="alignRightBtn">Right</button>
+        </div>
+      </div>
     </div>
-
-    <!-- ALIGN -->
-    <div class="textButtons">
-      <button id="alignLeftBtn">L</button>
-      <button id="alignCenterBtn">C</button>
-      <button id="alignRightBtn">R</button>
-    </div>
-
-  </div>
-</div>
 
     <div class="drop-wrap" id="drop-shapes">
       <button class="tool-btn" onclick="toggleDropdown('drop-shapes')">Shapes</button>
@@ -96,19 +100,19 @@
     </div>
 
     <div class="drop-wrap" id="drop-layers">
-       <button class="tool-btn" onclick="toggleDropdown('drop-layers')">Layers</button>
-       <div class="drop-menu" id="layerPanel">
-         <button class="drop-item iconRow" id="addLayerBtn">
-           <i class="bi bi-plus-lg"></i>
-          <span>Add </span>
-         </button>
-         <button class="drop-item iconRow" id="deleteLayerBtn">
-           <i class="bi bi-trash"></i>
-           <span>Delete</span>
+      <button class="tool-btn" onclick="toggleDropdown('drop-layers')">Layers</button>
+      <div class="drop-menu" id="layerPanel">
+        <button class="drop-item iconRow" id="addLayerBtn">
+          <i class="bi bi-plus-lg"></i>
+          <span>Add</span>
         </button>
-         <div class="divider"></div>
-       </div>
-   </div>
+        <button class="drop-item iconRow" id="deleteLayerBtn">
+          <i class="bi bi-trash"></i>
+          <span>Delete</span>
+        </button>
+        <div class="divider"></div>
+      </div>
+    </div>
 
     <div class="divider"></div>
 

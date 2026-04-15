@@ -87,7 +87,7 @@ h1 {
 canvas {
   background: white;
   border: 2px solid black;
-  cursor: crosshair;
+  cursor: none;
   display: block;
   margin: 0 auto 30px auto;
   box-shadow: 0 8px 20px rgba(0,0,0,0.2);
@@ -328,6 +328,25 @@ canvas {
   cursor: pointer;
 }
 
+.layerItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+
+.layerItem button {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+
 .layerItem.active {
   background-color: #2c76e6;
   color: white;
@@ -336,7 +355,6 @@ canvas {
 .layerItem.active i {
   color: white;
 }
-
 
 .iconRow {
   display: flex;
@@ -361,7 +379,6 @@ canvas {
   font-size: 13px;
   border-radius: 10px;
 }
-
 
 .dropdown {
   position: relative;
@@ -397,4 +414,10 @@ canvas {
 #fontSize {
   width: 100%;
   margin-bottom: 5px;
+}
+
+.mainLayout {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }

@@ -55,5 +55,7 @@ export const state = {
   drawing: {
     isDrawing: false,
     activeStrokeId: null
-  }
+  },
+
+  lastMousePos: null
 };

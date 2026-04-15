@@ -22,6 +22,19 @@ const paintBtn = document.getElementById("paintBtn");
 const highlightBtn = document.getElementById("highlightBtn");
 const eraseBtn = document.getElementById("eraseBtn");
 
+const addTextBtn = document.getElementById("addTextBtn");
+const fontFamilySelect = document.getElementById("fontFamily");
+const fontSizeInput = document.getElementById("fontSize");
+
+const boldBtn = document.getElementById("boldBtn");
+const italicBtn = document.getElementById("italicBtn");
+const underlineBtn = document.getElementById("underlineBtn");
+const strikethroughBtn = document.getElementById("strikethroughBtn");
+
+const alignLeftBtn = document.getElementById("alignLeftBtn");
+const alignCenterBtn = document.getElementById("alignCenterBtn");
+const alignRightBtn = document.getElementById("alignRightBtn");
+
 const colorPicker = document.getElementById("colorPicker");
 const brushSize = document.getElementById("brushSize");
 const clearButton = document.getElementById("clearButton");
@@ -52,6 +65,18 @@ const redoBtn = document.getElementById("redoBtn");
 
 // Variables
 let erasing = false;
+
+let activeTextInput = null;
+
+let textSettings = {
+  fontFamily: "Arial",
+  fontSize: 20,
+  bold: false,
+  italic: false,
+  underline: false,
+  align: "left"
+};
+
 let dragging = false;
 let dragStart = { x: 0, y: 0 };
 
@@ -139,6 +164,14 @@ function getObjectCenter(obj) {
     };
   }
 
+  if (obj.type === "text") {
+    const b = getBounds(obj);
+    return {
+      x: (b.minX + b.maxX) / 2,
+      y: (b.minY + b.maxY) / 2
+    };
+  }
+
   return { x: 0, y: 0 };
 }
 
@@ -188,6 +221,44 @@ function getBounds(obj) {
     };
   }
 
+
+  if (obj.type === "text") {
+
+  pen.save();
+
+  let font = "";
+  if (obj.bold) font += "bold ";
+  if (obj.italic) font += "italic ";
+  font += `${obj.fontSize}px ${obj.fontFamily}`;
+
+  pen.font = font;
+
+  const width = pen.measureText(obj.text).width;
+  const height = obj.fontSize;
+
+  pen.restore();
+
+  let minX = obj.x;
+  let maxX = obj.x + width;
+
+  if (obj.align === "center") {
+    minX = obj.x - width / 2;
+    maxX = obj.x + width / 2;
+  }
+
+  if (obj.align === "right") {
+    minX = obj.x - width;
+    maxX = obj.x;
+  }
+
+  return {
+    minX: minX - 6,
+    minY: obj.y - height - 6,
+    maxX: maxX + 6,
+    maxY: obj.y + 6
+  };
+}
+
   if (obj.type === "shape") {
     if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
       const corners = getRotatedCorners(obj);
@@ -235,7 +306,7 @@ function getObjectAt(x, y) {
     for (let i = layer.objects.length - 1; i >= 0; i--) {
       const obj = layer.objects[i];
 
-      if (obj.type !== "stroke" && obj.type !== "shape") continue;
+      if (obj.type !== "stroke" && obj.type !== "shape" && obj.type !== "text") continue;
 
       const b = getBounds(obj);
       if (!b) continue;
@@ -277,6 +348,22 @@ function renderGrid(context) {
   context.restore();
 }
 
+function drawCursor(x, y) {
+  pen.save();
+  pen.strokeStyle = "#000000";
+  pen.lineWidth = 1.5;
+
+  pen.beginPath();
+  pen.moveTo(x - 8, y);
+  pen.lineTo(x + 8, y);
+  pen.moveTo(x, y - 8);
+  pen.lineTo(x, y + 8);
+  pen.stroke();
+
+  pen.restore();
+}
+
+
 // Render everything from state
 function render() {
   pen.clearRect(0, 0, canvas.width, canvas.height);
@@ -293,6 +380,7 @@ function render() {
     for (const obj of layer.objects) {
       if (obj.type === "stroke") drawStroke(obj);
       if (obj.type === "shape") obj.draw(pen);
+      if (obj.type === "text") drawText(obj);
       if (state.selectedId === obj.id) drawSelection(obj);
     }
   }
@@ -301,6 +389,7 @@ function render() {
     drawCropBox();
   }
   renderLayerPanel();
+  if (state.lastMousePos) drawCursor(state.lastMousePos.x, state.lastMousePos.y);
 }
 
     // future refrence for rosette, nevile and victoria
@@ -390,6 +479,55 @@ function drawStroke(stroke) {
   }
 
   pen.stroke();
+  pen.restore();
+}
+
+function drawText(obj) {
+  pen.save();
+
+  let font = "";
+  if (obj.bold) font += "bold ";
+  if (obj.italic) font += "italic ";
+  font += `${obj.fontSize}px ${obj.fontFamily}`;
+
+  pen.font = font;
+  pen.fillStyle = obj.color;
+  pen.textAlign = obj.align || "left";
+
+  let drawX = obj.x;
+  let drawY = obj.y;
+
+  if (obj.rotation) {
+    pen.translate(obj.x, obj.y);
+    pen.rotate(obj.rotation);
+    drawX = 0;
+    drawY = 0;
+  }
+
+  pen.fillText(obj.text, drawX, drawY);
+
+  const width = pen.measureText(obj.text).width;
+
+  // ✅ UNDERLINE
+  if (obj.underline) {
+    pen.beginPath();
+    pen.moveTo(drawX, drawY + 4);
+    pen.lineTo(drawX + width, drawY + 4);
+    pen.strokeStyle = obj.color;
+    pen.lineWidth = obj.fontSize / 15;
+    pen.stroke();
+  }
+
+  // ✅ STRIKETHROUGH
+  if (obj.strikethrough) {
+    pen.beginPath();
+    pen.moveTo(drawX, drawY - obj.fontSize / 3);
+    pen.lineTo(drawX + width, drawY - obj.fontSize / 3);
+    pen.strokeStyle = obj.color;
+    pen.lineWidth = obj.fontSize / 15;
+    pen.stroke();
+  }
+
   pen.restore();
 }
 
@@ -676,6 +814,22 @@ function exportCanvasAsPng() {
   link.click();
 }
 
+
+function applyAlignToSelected() {
+  if (!state.selectedId) return;
+
+  const record = getObjectRecordById(state.selectedId);
+  if (!record) return;
+
+  const obj = record.obj;
+
+  if (obj.type === "text") {
+    obj.align = textSettings.align;
+    saveHistory();
+    render();
+  }
+}
+
 addLayerBtn.addEventListener("click", () => {
   const newLayer = {
     id: crypto.randomUUID(),
@@ -912,6 +1066,77 @@ paintBtn.addEventListener("click", () => {
   render();
 });
 
+
+
+const textDropdown = document.querySelector(".dropdown-menu");
+
+addTextBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+
+  // OPEN / CLOSE DROPDOWN
+  textDropdown.classList.toggle("open");
+
+  // ACTIVATE TEXT TOOL
+  state.currentTool = "text";
+  state.mode = "draw";
+  state.selectedId = null;
+});
+
+fontFamilySelect.addEventListener("change", () => {
+  textSettings.fontFamily = fontFamilySelect.value;
+});
+
+fontSizeInput.addEventListener("change", () => {
+  textSettings.fontSize = Number(fontSizeInput.value);
+});
+
+
+
+boldBtn.addEventListener("click", () => {
+  textSettings.bold = !textSettings.bold;
+  boldBtn.classList.toggle("activeTool", textSettings.bold);
+});
+
+italicBtn.addEventListener("click", () => {
+  textSettings.italic = !textSettings.italic;
+  italicBtn.classList.toggle("activeTool", textSettings.italic);
+});
+
+underlineBtn.addEventListener("click", () => {
+  textSettings.underline = !textSettings.underline;
+  underlineBtn.classList.toggle("activeTool", textSettings.underline);
+});
+
+alignLeftBtn.onclick = () => {
+  textSettings.align = "left";
+
+  alignLeftBtn.classList.add("activeTool");
+  alignCenterBtn.classList.remove("activeTool");
+  alignRightBtn.classList.remove("activeTool");
+
+  applyAlignToSelected();
+};
+
+alignCenterBtn.onclick = () => {
+  textSettings.align = "center";
+
+  alignCenterBtn.classList.add("activeTool");
+  alignLeftBtn.classList.remove("activeTool");
+  alignRightBtn.classList.remove("activeTool");
+
+  applyAlignToSelected();
+};
+
+alignRightBtn.onclick = () => {
+  textSettings.align = "right";
+
+  alignRightBtn.classList.add("activeTool");
+  alignLeftBtn.classList.remove("activeTool");
+  alignCenterBtn.classList.remove("activeTool");
+
+  applyAlignToSelected();
+};
+
 highlightBtn.addEventListener("click", () => {
   state.mode = "draw";
   state.currentTool = "highlight";
@@ -1139,64 +1364,157 @@ document.addEventListener("click", e => {
   }
 });
 
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".dropdown")) {
+    textDropdown.classList.remove("open");
+  }
+});
+
 window.toggleDropdown = toggleDropdown;
 
 // Mouse drawing
 canvas.addEventListener("mousedown", (event) => {
   const pos = getMousePosition(event);
 
-  if (state.mode === "crop") {
-    state.crop.active = true;
-    state.crop.startX = pos.x;
-    state.crop.startY = pos.y;
-    state.crop.currentX = pos.x;
-    state.crop.currentY = pos.y;
-    render();
-    return;
-  }
-
-  if (state.mode === "select") {
-    const record = state.selectedId ? getObjectRecordById(state.selectedId) : null;
-    const selectedObj = record?.obj || null;
-
-    if (selectedObj && selectedObj.type === "shape") {
-      const rotateClicked = getRotateHandle(selectedObj, pos.x, pos.y);
-
-      if (rotateClicked) {
-        rotating = true;
-
-        const center = getObjectCenter(selectedObj);
-        const currentAngle = selectedObj.rotation || 0;
-        const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
-
-        rotationOffset = mouseAngle - currentAngle;
-        return;
-      }
-    }
-
-    if (selectedObj) {
-      const handle = getResizeHandle(selectedObj, pos.x, pos.y);
-
-      if (handle) {
-        resizing = true;
-        resizeHandle = handle;
-        dragStart = pos;
-        return;
-      }
-    }
-
+  if (state.mode !== "select" && state.currentTool !== "text") {
     const clickedRecord = getObjectAt(pos.x, pos.y);
-
-    // if user clicked an existing object
-    if (clickedRecord) {
+    if (clickedRecord && clickedRecord.obj.type === "text") {
       state.selectedId = clickedRecord.obj.id;
       state.activeLayerId = clickedRecord.layer.id;
-      dragging = true;
-      dragStart = pos;
-
+      state.mode = "select";
+      updateToolButtons();
       render();
       return;
     }
+  }
+
+  if (state.currentTool === "text") {
+
+  // remove old input if exists
+  if (activeTextInput) {
+    activeTextInput.remove();
+  }
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Type here...";
+
+  const rect = canvas.getBoundingClientRect();
+
+  input.style.position = "absolute";
+  input.style.left = rect.left + pos.x + "px";
+  input.style.top = rect.top + pos.y + "px";
+  input.style.fontSize = textSettings.fontSize + "px";
+  input.style.fontFamily = textSettings.fontFamily;
+  input.style.border = "1px dashed #333";
+  input.style.background = "transparent";
+  input.style.color = state.brush.color;
+  input.style.outline = "none";
+  input.style.zIndex = 1000;
+
+  document.body.appendChild(input);
+  setTimeout(() => input.focus(), 0);
+
+  activeTextInput = input;
+
+  // SAVE TEXT
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+
+      
+      if (input.value.trim() !== "") {
+        getActiveLayer().objects.push({
+          id: createId(),
+          type: "text",
+          x: pos.x,
+          y: pos.y,
+          text: input.value,
+          fontSize: textSettings.fontSize,
+          fontFamily: textSettings.fontFamily,
+          bold: textSettings.bold,
+          italic: textSettings.italic,
+          underline: textSettings.underline,
+          align: textSettings.align,
+          color: state.brush.color,
+          rotation: 0                    // ← enables rotate handle
+    });
+
+        saveHistory();
+        render();
+      }
+
+      input.remove();
+      activeTextInput = null;
+
+      state.currentTool = "paint";
+      state.mode = "draw";
+      updateToolButtons();
+    }
+
+    if (e.key === "Escape") {
+      input.remove();
+      activeTextInput = null;
+
+      state.currentTool = "paint"; // or "select"
+    }
+  });
+
+  return;
+}
+
+  if (state.mode === "select") {
+
+const clickedRecord = getObjectAt(pos.x, pos.y);  
+if (clickedRecord) {
+  const obj = clickedRecord.obj;
+  if (obj.type === "text") {
+  textSettings.align = obj.align || "left";
+
+  alignLeftBtn.classList.toggle("activeTool", obj.align === "left");
+  alignCenterBtn.classList.toggle("activeTool", obj.align === "center");
+  alignRightBtn.classList.toggle("activeTool", obj.align === "right");
+}
+
+  state.selectedId = obj.id;
+  console.log("Selected:", obj);
+  state.activeLayerId = clickedRecord.layer.id;
+
+  // check resize
+  const handle = getResizeHandle(obj, pos.x, pos.y);
+  if (handle) {
+    resizing = true;
+    resizeHandle = handle;
+    dragStart = pos;
+    return;
+  }
+
+  // check rotate
+   if (obj.type === "shape" || obj.type === "text") {
+    const rotateClicked = getRotateHandle(obj, pos.x, pos.y);
+    if (rotateClicked) {
+      rotating = true;
+
+      const center = getObjectCenter(obj);
+      const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+
+      rotationOffset = mouseAngle - (obj.rotation || 0);
+      return;
+    }
+  }
+
+  dragging = true;
+  dragStart = pos;
+
+  render();
+  return;
+}
+
+// click empty space
+state.selectedId = null;
+render();
+return;
+
+
 
     state.selectedId = null;
     render();
@@ -1245,6 +1563,8 @@ canvas.addEventListener("mousedown", (event) => {
 
 canvas.addEventListener("mousemove", (event) => {
   const pos = getMousePosition(event);
+  state.lastMousePos = pos;
+   render();
 
   if (state.mode === "crop") {
     if (state.crop.active) {
@@ -1276,7 +1596,7 @@ canvas.addEventListener("mousemove", (event) => {
     const record = getObjectRecordById(state.selectedId);
     const obj = record?.obj || null;
 
-    if (obj && obj.type === "shape") {
+    if (obj && (obj.type === "shape" || obj.type === "text")) {
       const center = getObjectCenter(obj);
       const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
       obj.rotation = mouseAngle - rotationOffset;
@@ -1295,6 +1615,11 @@ canvas.addEventListener("mousemove", (event) => {
 
     const dx = pos.x - dragStart.x;
     const dy = pos.y - dragStart.y;
+
+
+    if (obj.type === "text") {
+  obj.fontSize = Math.max(8, obj.fontSize + dy * 0.5);
+}
 
     if (obj.type === "shape") {
       if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
@@ -1350,6 +1675,11 @@ canvas.addEventListener("mousemove", (event) => {
         p.x += dx;
         p.y += dy;
       });
+    }
+
+    if (obj.type === "text") {
+      obj.x += dx;
+      obj.y += dy;
     }
 
     if (obj.type === "shape") {
