@@ -215,51 +215,6 @@ function getAllPoints(obj) {
   return obj.points;
 }
 
-
-// Gets object from all stroke points
-function getBetterObjectAt(x, y) {
-  var xGood = false;
-  var yGood = false;
-
-  for (let i = state.objects.length - 1; i >= 0; i--) {
-    const obj = state.objects[i];
-
-    if (obj.type !== "stroke") continue;
-
-    // Get array of all stroke points
-    // const b = getAllPoints(obj);
-
-    const b = getAllPoints(obj);
-
-    // For every point, check if selection in vicinity
-    for (var p of b) {
-      var rad = brushSize.value*1;
-      var lastPoint = b[0];
-      xGood = false;
-      yGood = false;
-
-      if (b.indexOf(p) > 1) {
-        lastPoint = b[b.indexOf(p) - 1];
-      }
-
-      if (x >= (Math.min(p.x-rad, lastPoint.x-rad)) && x <= (Math.max(p.x+rad, lastPoint.x+rad))) {
-        xGood = true;
-      }
-
-      if (y >= (Math.min(p.y-rad, lastPoint.y-rad)) && y <= (Math.max(p.y+rad, lastPoint.y+rad))) {
-        yGood = true;
-      }
-
-      // If both x and y in close vicinity, return object
-      if (xGood && yGood) {
-        console.log("x and y good");
-        return obj;
-      }
-    }
-  }
-}
-
-
 function getBounds(obj) {
   if (obj.type === "stroke") {
     const xs = obj.points.map(p => p.x);
@@ -363,7 +318,39 @@ function getObjectAt(x, y) {
       const b = getBounds(obj);
       if (!b) continue;
 
-      if (
+      // tighter selection for strokes only
+      if (obj.type == "stroke") {
+        var xGood = false;
+        var yGood = false;
+        const points = getAllPoints(obj);
+
+        // For every point, check if selection in vicinity
+        for (var p of points) {
+          var rad = brushSize.value*1;
+          var lastPoint = points[0];
+          xGood = false;
+          yGood = false;
+
+          if (points.indexOf(p) > 1) {
+            lastPoint = points[points.indexOf(p) - 1];
+          }
+
+          if (x >= (Math.min(p.x-rad, lastPoint.x-rad)) && x <= (Math.max(p.x+rad, lastPoint.x+rad))) {
+            xGood = true;
+          }
+
+          if (y >= (Math.min(p.y-rad, lastPoint.y-rad)) && y <= (Math.max(p.y+rad, lastPoint.y+rad))) {
+            yGood = true;
+          }
+
+          // If both x and y in close vicinity, return object
+          if (xGood && yGood) {
+            // output for testing purposes
+            console.log("x and y good");
+            return { layer, obj };;
+          }
+        }
+      } else if (
         x >= b.minX - 5 &&
         x <= b.maxX + 5 &&
         y >= b.minY - 5 &&
