@@ -8,8 +8,6 @@
    future shapes / text / images
 */
 
-// RAINBOW PEN: https://www.w3schools.com/tags/canvas_strokestyle.asp
-
 import { state } from "./state.js";
 
 // Canvas setup
@@ -508,10 +506,10 @@ function drawStroke(stroke) {
   if (stroke.tool === "erase") {
     const activeLayer = getActiveLayer();
 
-  // Only erase if this stroke belongs to active layer
-  if (!activeLayer.objects.includes(stroke)) {
-    return; // skip erase on other layers
-  }
+    // Only erase if this stroke belongs to active layer
+    if (!activeLayer.objects.includes(stroke)) {
+      return; // skip erase on other layers
+    }
     
     pen.globalCompositeOperation = "destination-out";
     pen.strokeStyle = "rgba(0,0,0,1)";
@@ -1444,132 +1442,126 @@ canvas.addEventListener("mousedown", (event) => {
 
   if (state.currentTool === "text") {
 
-  // remove old input if exists
-  if (activeTextInput) {
-    activeTextInput.remove();
-  }
+    // remove old input if exists
+    if (activeTextInput) {
+      activeTextInput.remove();
+    }
 
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "Type here...";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Type here...";
 
-  const rect = canvas.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
 
-  input.style.position = "absolute";
-  input.style.left = rect.left + pos.x + "px";
-  input.style.top = rect.top + pos.y + "px";
-  input.style.fontSize = textSettings.fontSize + "px";
-  input.style.fontFamily = textSettings.fontFamily;
-  input.style.border = "1px dashed #333";
-  input.style.background = "transparent";
-  input.style.color = state.brush.color;
-  input.style.outline = "none";
-  input.style.zIndex = 1000;
+    input.style.position = "absolute";
+    input.style.left = rect.left + pos.x + "px";
+    input.style.top = rect.top + pos.y + "px";
+    input.style.fontSize = textSettings.fontSize + "px";
+    input.style.fontFamily = textSettings.fontFamily;
+    input.style.border = "1px dashed #333";
+    input.style.background = "transparent";
+    input.style.color = state.brush.color;
+    input.style.outline = "none";
+    input.style.zIndex = 1000;
 
-  document.body.appendChild(input);
-  setTimeout(() => input.focus(), 0);
+    document.body.appendChild(input);
+    setTimeout(() => input.focus(), 0);
 
-  activeTextInput = input;
+    activeTextInput = input;
 
-  // SAVE TEXT
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-
+    // SAVE TEXT
+    input.addEventListener("keydown", (e) => {
       
-      if (input.value.trim() !== "") {
-        getActiveLayer().objects.push({
-          id: createId(),
-          type: "text",
-          x: pos.x,
-          y: pos.y,
-          text: input.value,
-          fontSize: textSettings.fontSize,
-          fontFamily: textSettings.fontFamily,
-          bold: textSettings.bold,
-          italic: textSettings.italic,
-          underline: textSettings.underline,
-          align: textSettings.align,
-          color: state.brush.color,
-          rotation: 0                    // ← enables rotate handle
-    });
+      if (e.key === "Enter") {
+        if (input.value.trim() !== "") {
+          getActiveLayer().objects.push({
+            id: createId(),
+            type: "text",
+            x: pos.x,
+            y: pos.y,
+            text: input.value,
+            fontSize: textSettings.fontSize,
+            fontFamily: textSettings.fontFamily,
+            bold: textSettings.bold,
+            italic: textSettings.italic,
+            underline: textSettings.underline,
+            align: textSettings.align,
+            color: state.brush.color,
+            rotation: 0                    // ← enables rotate handle
+        });
 
-        saveHistory();
-        render();
+          saveHistory();
+          render();
+        }
+
+        input.remove();
+        activeTextInput = null;
+
+        state.currentTool = "paint";
+        state.mode = "draw";
+        updateToolButtons();
       }
 
-      input.remove();
-      activeTextInput = null;
+      if (e.key === "Escape") {
+        input.remove();
+        activeTextInput = null;
 
-      state.currentTool = "paint";
-      state.mode = "draw";
-      updateToolButtons();
-    }
+        state.currentTool = "paint"; // or "select"
+      }
+    });
 
-    if (e.key === "Escape") {
-      input.remove();
-      activeTextInput = null;
-
-      state.currentTool = "paint"; // or "select"
-    }
-  });
-
-  return;
-}
-
-  if (state.mode === "select") {
-
-const clickedRecord = getObjectAt(pos.x, pos.y);  
-if (clickedRecord) {
-  const obj = clickedRecord.obj;
-  if (obj.type === "text") {
-  textSettings.align = obj.align || "left";
-
-  alignLeftBtn.classList.toggle("activeTool", obj.align === "left");
-  alignCenterBtn.classList.toggle("activeTool", obj.align === "center");
-  alignRightBtn.classList.toggle("activeTool", obj.align === "right");
-}
-
-  state.selectedId = obj.id;
-  console.log("Selected:", obj);
-  state.activeLayerId = clickedRecord.layer.id;
-
-  // check resize
-  const handle = getResizeHandle(obj, pos.x, pos.y);
-  if (handle) {
-    resizing = true;
-    resizeHandle = handle;
-    dragStart = pos;
     return;
   }
 
-  // check rotate
-   if (obj.type === "shape" || obj.type === "text") {
-    const rotateClicked = getRotateHandle(obj, pos.x, pos.y);
-    if (rotateClicked) {
-      rotating = true;
+  if (state.mode === "select") {
 
-      const center = getObjectCenter(obj);
-      const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+    const clickedRecord = getObjectAt(pos.x, pos.y);  
+    if (clickedRecord) {
 
-      rotationOffset = mouseAngle - (obj.rotation || 0);
+      const obj = clickedRecord.obj;
+      if (obj.type === "text") {
+        textSettings.align = obj.align || "left";
+
+        alignLeftBtn.classList.toggle("activeTool", obj.align === "left");
+        alignCenterBtn.classList.toggle("activeTool", obj.align === "center");
+        alignRightBtn.classList.toggle("activeTool", obj.align === "right");
+      }
+
+      state.selectedId = obj.id;
+      console.log("Selected:", obj);
+      state.activeLayerId = clickedRecord.layer.id;
+
+      // check resize
+      const handle = getResizeHandle(obj, pos.x, pos.y);
+      if (handle) {
+        resizing = true;
+        resizeHandle = handle;
+        dragStart = pos;
+        return;
+      }
+
+      // check rotate
+      if (obj.type === "shape" || obj.type === "text") {
+        const rotateClicked = getRotateHandle(obj, pos.x, pos.y);
+        if (rotateClicked) {
+          rotating = true;
+
+          const center = getObjectCenter(obj);
+          const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+
+          rotationOffset = mouseAngle - (obj.rotation || 0);
+          return;
+        }
+      }
+
+      dragging = true;
+      dragStart = pos;
+
+      render();
       return;
     }
-  }
 
-  dragging = true;
-  dragStart = pos;
-
-  render();
-  return;
-}
-
-// click empty space
-state.selectedId = null;
-render();
-return;
-
-
-
+    // click empty space
     state.selectedId = null;
     render();
     return;
@@ -1578,7 +1570,6 @@ return;
   // NORMAL DRAWING
 
   state.selectedId = null;
-
   state.drawing.isDrawing = true;
 
   const strokeId = createId();

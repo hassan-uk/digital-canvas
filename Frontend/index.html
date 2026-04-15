@@ -10,9 +10,9 @@
   <h1>VisualGrid</h1>
 
   <div class="toolbar">
-    <button class="smallBtn" id="paintBtn" title="Paintbrush (P)">P</button>
-    <button class="smallBtn" id="highlightBtn" title="Highlighter (H)">H</button>
-    <button class="smallBtn" id="eraseBtn" title="Eraser (E)">E</button>
+    <button class="smallBtn" id="paintBtn" title="Paintbrush (Ctrl+P)">P</button>
+    <button class="smallBtn" id="highlightBtn" title="Highlighter (Ctrl+H)">H</button>
+    <button class="smallBtn" id="eraseBtn" title="Eraser (Ctrl+E)">E</button>
 
     <div class="divider"></div>
 
@@ -22,7 +22,7 @@
     <div class="divider"></div>
 
     <div class="dropdown">
-      <button id="addTextBtn" class="smallBtn">Text ▼</button>
+      <button id="addTextBtn" class="smallBtn" title="Insert text box">Text ▼</button>
 
       <div class="dropdown-menu">
         <select id="fontFamily">
@@ -100,13 +100,13 @@
     </div>
 
     <div class="drop-wrap" id="drop-layers">
-      <button class="tool-btn" onclick="toggleDropdown('drop-layers')">Layers</button>
+      <button class="tool-btn" onclick="toggleDropdown('drop-layers')" title="View layers">Layers</button>
       <div class="drop-menu" id="layerPanel">
-        <button class="drop-item iconRow" id="addLayerBtn">
+        <button class="drop-item iconRow" id="addLayerBtn" title="Add new layer">
           <i class="bi bi-plus-lg"></i>
           <span>Add</span>
         </button>
-        <button class="drop-item iconRow" id="deleteLayerBtn">
+        <button class="drop-item iconRow" id="deleteLayerBtn" title="Delete active layer">
           <i class="bi bi-trash"></i>
           <span>Delete</span>
         </button>
@@ -116,13 +116,13 @@
 
     <div class="divider"></div>
 
-    <button class="smallBtn" id="zoomOutBtn"><i class="bi bi-zoom-out"></i></button>
-    <button class="smallBtn" id="zoomInBtn"><i class="bi bi-zoom-in"></i></button>
+    <button class="smallBtn" id="zoomOutBtn" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
+    <button class="smallBtn" id="zoomInBtn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
 
     <button class="smallBtn" id="undoBtn" title="Undo (Ctrl+Z)"><i class="bi bi-arrow-counterclockwise"></i></button>
     <button class="smallBtn" id="redoBtn" title="Redo (Ctrl+Y)"><i class="bi bi-arrow-clockwise"></i></button>
 
-    <button id="clearButton">Clear</button>
+    <button id="clearButton" title="Clear canvas">Clear</button>
   </div>
 
   <div class="mainLayout">
@@ -147,15 +147,15 @@
 
   <!-- shortcuts -->
   <script>
-    shortcut.add("p", function() {
+    shortcut.add("Ctrl+p", function() {
       document.getElementById('paintBtn').click();
     });   
 
-    shortcut.add("h", function() {
+    shortcut.add("Ctrl+h", function() {
       document.getElementById('highlightBtn').click();
     });
 
-    shortcut.add("e", function() {
+    shortcut.add("Ctrl+e", function() {
       document.getElementById('eraseBtn').click();
     }); 
 
