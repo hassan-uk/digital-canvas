@@ -574,6 +574,18 @@ function drawText(obj) {
 }
 
 
+
+function reinitializeLayerCanvases() {
+  state.layers.forEach(layer => {
+    const newCanvas = document.createElement("canvas");
+    newCanvas.width = canvas.width;
+    newCanvas.height = canvas.height;
+
+    layer.canvas = newCanvas;
+    layer.ctx = newCanvas.getContext("2d");
+  });
+}
+
 function drawTextOnContext(ctx, obj) {
   ctx.save();
 
@@ -1078,6 +1090,7 @@ function undo() {
   canvas.width = state.canvas.width;
   canvas.height = state.canvas.height;
   restoreShapeFunctions();
+  reinitializeLayerCanvases();
   applyZoom();
   state.selectedId = null;
 
@@ -1096,6 +1109,7 @@ function redo() {
   canvas.width = state.canvas.width;
   canvas.height = state.canvas.height;
   restoreShapeFunctions();
+  reinitializeLayerCanvases();
   applyZoom();
   state.selectedId = null;
 
