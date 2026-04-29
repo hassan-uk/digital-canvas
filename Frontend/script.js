@@ -64,6 +64,7 @@ const redoBtn = document.getElementById("redoBtn");
 // Variables
 let erasing = false;
 
+let editingTextId = null;
 let activeTextInput = null;
 
 let textSettings = {
@@ -182,6 +183,46 @@ function getObjectCenter(obj) {
   return { x: 0, y: 0 };
 }
 
+
+function applyTextStylesToSelected() {
+
+  let obj = null;
+
+  // PRIORITY 1: if editing
+  if (editingTextId) {
+    const record = getObjectRecordById(editingTextId);
+    if (record) obj = record.obj;
+  }
+
+  // PRIORITY 2: if selected
+  else if (state.selectedId) {
+    const record = getObjectRecordById(state.selectedId);
+    if (record) obj = record.obj;
+  }
+
+  if (!obj || obj.type !== "text") return;
+
+  obj.fontFamily = textSettings.fontFamily;
+  obj.fontSize = textSettings.fontSize;
+  obj.bold = textSettings.bold;
+  obj.italic = textSettings.italic;
+  obj.underline = textSettings.underline;
+
+  if (activeTextInput) {
+    activeTextInput.style.fontFamily = obj.fontFamily;
+    activeTextInput.style.fontSize = obj.fontSize + "px";
+
+    activeTextInput.style.fontWeight = obj.bold ? "bold" : "normal";
+    activeTextInput.style.fontStyle = obj.italic ? "italic" : "normal";
+    activeTextInput.style.textDecoration = obj.underline ? "underline" : "none";
+  }
+
+  saveHistory();
+  render();
+}
+
+
+
 function rotatePoint(px, py, cx, cy, angle) {
   const dx = px - cx;
   const dy = py - cy;
@@ -267,12 +308,12 @@ function getBounds(obj) {
     maxX = obj.x;
   }
 
-  return {
-    minX: minX - 6,
-    minY: obj.y - height - 6,
-    maxX: maxX + 6,
-    maxY: obj.y + 6
-  };
+return {
+  minX: minX - 10,
+  minY: obj.y - height - 10,
+  maxX: maxX + 10,
+  maxY: obj.y + 10
+ };
 }
 
   if (obj.type === "shape") {
@@ -435,9 +476,14 @@ function render() {
   for (const obj of layer.objects) {
     if (obj.type === "stroke") drawStrokeOnContext(ctx, obj);
     if (obj.type === "shape") obj.draw(ctx);
-    if (obj.type === "text") drawTextOnContext(ctx, obj);
-
-    if (state.selectedId === obj.id) drawSelection(obj);
+    if (obj.type === "text") {
+      if (obj.id !== editingTextId) {
+        drawTextOnContext(ctx, obj);
+      }
+    }
+    if (state.selectedId === obj.id && obj.id !== editingTextId) {
+       drawSelection(obj);
+    }
   }
 
   // now draw this layer onto main canvas
@@ -1186,10 +1232,12 @@ addTextBtn.addEventListener("click", (e) => {
 
 fontFamilySelect.addEventListener("change", () => {
   textSettings.fontFamily = fontFamilySelect.value;
+  applyTextStylesToSelected();
 });
 
 fontSizeInput.addEventListener("change", () => {
   textSettings.fontSize = Number(fontSizeInput.value);
+  applyTextStylesToSelected();
 });
 
 
@@ -1197,16 +1245,19 @@ fontSizeInput.addEventListener("change", () => {
 boldBtn.addEventListener("click", () => {
   textSettings.bold = !textSettings.bold;
   boldBtn.classList.toggle("activeTool", textSettings.bold);
+  applyTextStylesToSelected();
 });
 
 italicBtn.addEventListener("click", () => {
   textSettings.italic = !textSettings.italic;
   italicBtn.classList.toggle("activeTool", textSettings.italic);
+  applyTextStylesToSelected();
 });
 
 underlineBtn.addEventListener("click", () => {
   textSettings.underline = !textSettings.underline;
   underlineBtn.classList.toggle("activeTool", textSettings.underline);
+  applyTextStylesToSelected();
 });
 
 alignLeftBtn.onclick = () => {
@@ -1474,6 +1525,67 @@ document.addEventListener("click", (e) => {
 
 window.toggleDropdown = toggleDropdown;
 
+canvas.addEventListener("dblclick", (event) => {
+  const pos = getMousePosition(event);
+
+  const record = getObjectAt(pos.x, pos.y);
+  if (!record) return;
+
+  const obj = record.obj;
+
+  if (obj.type !== "text") return;
+
+  editingTextId = obj.id;
+
+  if (activeTextInput) {
+    activeTextInput.remove();
+  }
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = obj.text;
+
+  const rect = canvas.getBoundingClientRect();
+
+  input.style.position = "absolute";
+  input.style.left = rect.left + obj.x + "px";
+  input.style.top = rect.top + (obj.y - obj.fontSize) + "px";
+  input.style.fontSize = obj.fontSize + "px";
+  input.style.fontFamily = obj.fontFamily;
+  input.style.border = "1px dashed #333";
+  input.style.background = "transparent";
+  input.style.color = obj.color;
+  input.style.outline = "none";
+  input.style.zIndex = 1000;
+
+  document.body.appendChild(input);
+  input.focus();
+
+  activeTextInput = input;
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      obj.text = input.value;
+
+      input.remove();
+      activeTextInput = null;
+      editingTextId = null;
+
+      state.selectedId = obj.id;
+      state.mode = "select";
+
+      saveHistory();
+      render();
+    }
+
+    if (e.key === "Escape") {
+      input.remove();
+      activeTextInput = null;
+      editingTextId = null;
+    }
+  });
+});
+
 // Mouse drawing
 canvas.addEventListener("mousedown", (event) => {
   const pos = getMousePosition(event);
@@ -1492,76 +1604,91 @@ canvas.addEventListener("mousedown", (event) => {
 
   if (state.currentTool === "text") {
 
-    // remove old input if exists
-    if (activeTextInput) {
-      activeTextInput.remove();
-    }
+  const clickedRecord = getObjectAt(pos.x, pos.y);
 
-    const input = document.createElement("input");
-    input.type = "text";
-    input.placeholder = "Type here...";
-
-    const rect = canvas.getBoundingClientRect();
-
-    input.style.position = "absolute";
-    input.style.left = rect.left + pos.x + "px";
-    input.style.top = rect.top + pos.y + "px";
-    input.style.fontSize = textSettings.fontSize + "px";
-    input.style.fontFamily = textSettings.fontFamily;
-    input.style.border = "1px dashed #333";
-    input.style.background = "transparent";
-    input.style.color = state.brush.color;
-    input.style.outline = "none";
-    input.style.zIndex = 1000;
-
-    document.body.appendChild(input);
-    setTimeout(() => input.focus(), 0);
-
-    activeTextInput = input;
-
-    // SAVE TEXT
-    input.addEventListener("keydown", (e) => {
-      
-      if (e.key === "Enter") {
-        if (input.value.trim() !== "") {
-          getActiveLayer().objects.push({
-            id: createId(),
-            type: "text",
-            x: pos.x,
-            y: pos.y,
-            text: input.value,
-            fontSize: textSettings.fontSize,
-            fontFamily: textSettings.fontFamily,
-            bold: textSettings.bold,
-            italic: textSettings.italic,
-            underline: textSettings.underline,
-            align: textSettings.align,
-            color: state.brush.color,
-            rotation: 0                    // ← enables rotate handle
-        });
-
-          saveHistory();
-          render();
-        }
-
-        input.remove();
-        activeTextInput = null;
-
-        state.currentTool = "paint";
-        state.mode = "draw";
-        updateToolButtons();
-      }
-
-      if (e.key === "Escape") {
-        input.remove();
-        activeTextInput = null;
-
-        state.currentTool = "paint"; // or "select"
-      }
-    });
-
+  // if clicking existing text then select instead of creating new
+  if (clickedRecord && clickedRecord.obj.type === "text") {
+    state.selectedId = clickedRecord.obj.id;
+    state.activeLayerId = clickedRecord.layer.id;
+    state.mode = "select";
+    updateToolButtons();
+    render();
     return;
   }
+
+  // else create new text
+  if (activeTextInput) {
+    activeTextInput.remove();
+  }
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Type here...";
+
+  const rect = canvas.getBoundingClientRect();
+
+  input.style.position = "absolute";
+  input.style.left = rect.left + pos.x + "px";
+  input.style.top = rect.top + pos.y + "px";
+  input.style.fontSize = textSettings.fontSize + "px";
+  input.style.fontFamily = textSettings.fontFamily;
+  input.style.border = "1px dashed #333";
+  input.style.background = "transparent";
+  input.style.color = state.brush.color;
+  input.style.outline = "none";
+  input.style.zIndex = 1000;
+
+  document.body.appendChild(input);
+  input.focus();
+
+  activeTextInput = input;
+
+  input.addEventListener("keydown", (e) => {
+
+    if (e.key === "Enter") {
+      if (input.value.trim() !== "") {
+        getActiveLayer().objects.push({
+          id: createId(),
+          type: "text",
+          x: pos.x,
+          y: pos.y,
+          text: input.value,
+          fontSize: textSettings.fontSize,
+          fontFamily: textSettings.fontFamily,
+          bold: textSettings.bold,
+          italic: textSettings.italic,
+          underline: textSettings.underline,
+          align: textSettings.align,
+          color: state.brush.color,
+          rotation: 0
+        });
+
+        saveHistory();
+        render();
+      }
+
+      input.remove();
+      activeTextInput = null;
+
+      // switch back to select
+      state.currentTool = "paint";
+      state.mode = "select";
+
+      updateToolButtons();
+    }
+
+    if (e.key === "Escape") {
+      input.remove();
+      activeTextInput = null;
+
+      state.currentTool = "paint";
+      state.mode = "draw";
+    }
+  });
+
+  return;
+}
+
 
   if (state.mode === "select") {
 
@@ -1569,13 +1696,29 @@ canvas.addEventListener("mousedown", (event) => {
     if (clickedRecord) {
 
       const obj = clickedRecord.obj;
-      if (obj.type === "text") {
-        textSettings.align = obj.align || "left";
+      
 
-        alignLeftBtn.classList.toggle("activeTool", obj.align === "left");
-        alignCenterBtn.classList.toggle("activeTool", obj.align === "center");
+      if (obj.type === "text") {
+         textSettings.align = obj.align || "left";
+
+         textSettings.fontFamily = obj.fontFamily;
+         textSettings.fontSize = obj.fontSize;
+         textSettings.bold = obj.bold;
+         textSettings.italic = obj.italic;
+         textSettings.underline = obj.underline;
+
+         fontFamilySelect.value = obj.fontFamily;
+         fontSizeInput.value = obj.fontSize;
+
+         boldBtn.classList.toggle("activeTool", obj.bold);
+         italicBtn.classList.toggle("activeTool", obj.italic);
+         underlineBtn.classList.toggle("activeTool", obj.underline);
+
+         alignLeftBtn.classList.toggle("activeTool", obj.align === "left");
+         alignCenterBtn.classList.toggle("activeTool", obj.align === "center");
         alignRightBtn.classList.toggle("activeTool", obj.align === "right");
       }
+
 
       state.selectedId = obj.id;
       console.log("Selected:", obj);
@@ -1878,7 +2021,19 @@ saveProjectBtn.addEventListener("click", () => {
 // save project
 saveConfirmBtn.addEventListener("click", () => {
   const name = projectNameInput.value || "visualgrid-project";
-  const data = JSON.stringify(state, null, 2);
+
+  // this remove canvas and ctx before saving
+  const cleanState = {
+    ...state,
+    layers: state.layers.map(layer => ({
+      ...layer,
+      canvas: null,
+      ctx: null
+    }))
+  };
+
+  const data = JSON.stringify(cleanState, null, 2);
+
   const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
@@ -1891,6 +2046,7 @@ saveConfirmBtn.addEventListener("click", () => {
 
   savePopup.style.display = "none";
 });
+
 
 // cancel popup
 saveCancelBtn.addEventListener("click", () => {
@@ -1920,6 +2076,8 @@ loadProjectInput.addEventListener("change", async (e) => {
   state.zoom = loadedData.zoom ?? 1;
   canvas.width = state.canvas.width;
   canvas.height = state.canvas.height;
+  reinitializeLayerCanvases();
+  restoreShapeFunctions();
   restoreShapeFunctions();
   applyZoom();
   state.selectedId = loadedData.selectedId ?? null;
