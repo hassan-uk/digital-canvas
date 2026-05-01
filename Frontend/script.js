@@ -53,6 +53,7 @@ const addLineBtn = document.getElementById("addLineBtn");
 const fillToggle = document.getElementById("fillToggle");
 const addLayerBtn = document.getElementById("addLayerBtn");
 const deleteLayerBtn = document.getElementById("deleteLayerBtn");
+const editDropdownMenu = document.querySelector("#drop-edit .drop-menu");
 
 const savePopup = document.getElementById("savePopup");
 const projectNameInput = document.getElementById("projectNameInput");
@@ -122,6 +123,32 @@ function getObjectRecordById(id) {
   return null;
 }
 
+function isFillableShape(obj) {
+  return !!obj &&
+    obj.type === "shape" &&
+    (
+      obj.shapeType === "rectangle" ||
+      obj.shapeType === "circle" ||
+      obj.shapeType === "triangle"
+    );
+}
+
+function syncFillToggleWithSelection() {
+  const record = state.selectedId ? getObjectRecordById(state.selectedId) : null;
+  const selectedObj = record?.obj || null;
+
+  if (isFillableShape(selectedObj)) {
+    fillToggle.checked = !!selectedObj.fill;
+    return;
+  }
+
+  fillToggle.checked = !!state.brush.fill;
+}
+
+function closeToolbarDropdowns() {
+  document.querySelectorAll(".drop-wrap").forEach(d => d.classList.remove("open"));
+}
+
 // Get mouse position inside canvas
 function getMousePosition(event) {
   const box = canvas.getBoundingClientRect();
@@ -183,39 +210,162 @@ function getObjectCenter(obj) {
   return { x: 0, y: 0 };
 }
 
+function buildFontString(styleSource) {
+  let font = "";
 
-function applyTextStylesToSelected() {
+  if (styleSource.bold) font += "bold ";
+  if (styleSource.italic) font += "italic ";
 
+  font += `${styleSource.fontSize}px ${styleSource.fontFamily}`;
+  return font;
+}
+
+function getCanvasDisplayScale() {
+  const rect = canvas.getBoundingClientRect();
+
+  return {
+    x: rect.width / canvas.width,
+    y: rect.height / canvas.height
+  };
+}
+
+function getAlignedTextStartX(x, width, align = "left") {
+  if (align === "center") {
+    return x - width / 2;
+  }
+
+  if (align === "right") {
+    return x - width;
+  }
+
+  return x;
+}
+
+function measureTextWidth(text, styleSource) {
+  pen.save();
+  pen.font = buildFontString(styleSource);
+  const width = pen.measureText(text || " ").width;
+  pen.restore();
+
+  return width;
+}
+
+function updateTextControls() {
+  fontFamilySelect.value = textSettings.fontFamily;
+  fontSizeInput.value = textSettings.fontSize;
+  boldBtn.classList.toggle("activeTool", textSettings.bold);
+  italicBtn.classList.toggle("activeTool", textSettings.italic);
+  underlineBtn.classList.toggle("activeTool", textSettings.underline);
+  alignLeftBtn.classList.toggle("activeTool", textSettings.align === "left");
+  alignCenterBtn.classList.toggle("activeTool", textSettings.align === "center");
+  alignRightBtn.classList.toggle("activeTool", textSettings.align === "right");
+}
+
+function loadTextSettings(obj) {
+  if (!obj || obj.type !== "text") return;
+
+  textSettings.fontFamily = obj.fontFamily;
+  textSettings.fontSize = obj.fontSize;
+  textSettings.bold = obj.bold;
+  textSettings.italic = obj.italic;
+  textSettings.underline = obj.underline;
+  textSettings.align = obj.align || "left";
+
+  if (obj.color) {
+    state.brush.color = obj.color;
+    colorPicker.value = obj.color;
+  }
+
+  updateTextControls();
+}
+
+function getSelectedTextObject() {
   let obj = null;
 
-  // PRIORITY 1: if editing
   if (editingTextId) {
     const record = getObjectRecordById(editingTextId);
     if (record) obj = record.obj;
-  }
-
-  // PRIORITY 2: if selected
-  else if (state.selectedId) {
+  } else if (state.selectedId) {
     const record = getObjectRecordById(state.selectedId);
     if (record) obj = record.obj;
   }
 
-  if (!obj || obj.type !== "text") return;
+  if (!obj || obj.type !== "text") return null;
+  return obj;
+}
 
-  obj.fontFamily = textSettings.fontFamily;
-  obj.fontSize = textSettings.fontSize;
-  obj.bold = textSettings.bold;
-  obj.italic = textSettings.italic;
-  obj.underline = textSettings.underline;
+function styleActiveTextInput(input, styleSource) {
+  const scale = getCanvasDisplayScale();
+
+  input.style.fontFamily = styleSource.fontFamily;
+  input.style.fontSize = `${styleSource.fontSize * scale.y}px`;
+  input.style.fontWeight = styleSource.bold ? "bold" : "normal";
+  input.style.fontStyle = styleSource.italic ? "italic" : "normal";
+  input.style.textDecoration = styleSource.underline ? "underline" : "none";
+  input.style.textAlign = styleSource.align || "left";
+  input.style.color = styleSource.color;
+}
+
+function positionActiveTextInput(input, styleSource) {
+  const rect = canvas.getBoundingClientRect();
+  const scale = getCanvasDisplayScale();
+  const paddingX = 6;
+  const paddingY = 4;
+  const textValue = input.value || input.placeholder || " ";
+  const textWidth = measureTextWidth(textValue, styleSource);
+  const leftEdge = getAlignedTextStartX(styleSource.x, textWidth, styleSource.align);
+  const width = Math.max(120, textWidth * scale.x + paddingX * 2);
+  const height = Math.max(32, styleSource.fontSize * scale.y + paddingY * 2);
+
+  input.style.left = `${window.scrollX + rect.left + leftEdge * scale.x - paddingX}px`;
+  input.style.top = `${window.scrollY + rect.top + (styleSource.y - styleSource.fontSize) * scale.y - paddingY}px`;
+  input.style.width = `${width}px`;
+  input.style.height = `${height}px`;
+}
+
+function refreshActiveTextInput() {
+  if (!activeTextInput) return;
+
+  const textObj = getSelectedTextObject();
+  const styleSource = textObj || {
+    x: Number(activeTextInput.dataset.canvasX),
+    y: Number(activeTextInput.dataset.canvasY),
+    fontFamily: textSettings.fontFamily,
+    fontSize: textSettings.fontSize,
+    bold: textSettings.bold,
+    italic: textSettings.italic,
+    underline: textSettings.underline,
+    align: textSettings.align,
+    color: activeTextInput.dataset.color || state.brush.color
+  };
+
+  if (textObj) {
+    activeTextInput.dataset.canvasX = String(textObj.x);
+    activeTextInput.dataset.canvasY = String(textObj.y);
+    activeTextInput.dataset.color = textObj.color;
+  }
+
+  styleActiveTextInput(activeTextInput, styleSource);
+  positionActiveTextInput(activeTextInput, styleSource);
+}
+
+
+function applyTextStylesToSelected() {
+  const obj = getSelectedTextObject();
+
+  if (obj) {
+    obj.fontFamily = textSettings.fontFamily;
+    obj.fontSize = textSettings.fontSize;
+    obj.bold = textSettings.bold;
+    obj.italic = textSettings.italic;
+    obj.underline = textSettings.underline;
+  }
 
   if (activeTextInput) {
-    activeTextInput.style.fontFamily = obj.fontFamily;
-    activeTextInput.style.fontSize = obj.fontSize + "px";
-
-    activeTextInput.style.fontWeight = obj.bold ? "bold" : "normal";
-    activeTextInput.style.fontStyle = obj.italic ? "italic" : "normal";
-    activeTextInput.style.textDecoration = obj.underline ? "underline" : "none";
+    refreshActiveTextInput();
   }
+
+  if (!obj) return;
 
   saveHistory();
   render();
@@ -280,40 +430,40 @@ function getBounds(obj) {
 
 
   if (obj.type === "text") {
-
   pen.save();
-
-  let font = "";
-  if (obj.bold) font += "bold ";
-  if (obj.italic) font += "italic ";
-  font += `${obj.fontSize}px ${obj.fontFamily}`;
-
-  pen.font = font;
-
+  pen.font = buildFontString(obj);
   const width = pen.measureText(obj.text).width;
   const height = obj.fontSize;
-
   pen.restore();
 
-  let minX = obj.x;
-  let maxX = obj.x + width;
+  const minX = getAlignedTextStartX(obj.x, width, obj.align);
+  const maxX = minX + width;
 
-  if (obj.align === "center") {
-    minX = obj.x - width / 2;
-    maxX = obj.x + width / 2;
+  // If rotated, calculate bounds of rotated box
+  if (obj.rotation) {
+    const corners = [
+      {x: minX, y: obj.y - height},
+      {x: maxX, y: obj.y - height},
+      {x: minX, y: obj.y},
+      {x: maxX, y: obj.y}
+    ];
+    const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, obj.x, obj.y, obj.rotation));
+    const xs = rotatedCorners.map(c => c.x);
+    const ys = rotatedCorners.map(c => c.y);
+    return {
+      minX: Math.min(...xs) - 10,
+      minY: Math.min(...ys) - 10,
+      maxX: Math.max(...xs) + 10,
+      maxY: Math.max(...ys) + 10
+    };
   }
 
-  if (obj.align === "right") {
-    minX = obj.x - width;
-    maxX = obj.x;
-  }
-
-return {
-  minX: minX - 10,
-  minY: obj.y - height - 10,
-  maxX: maxX + 10,
-  maxY: obj.y + 10
- };
+  return {
+    minX: minX - 10,
+    minY: obj.y - height - 10,
+    maxX: maxX + 10,
+    maxY: obj.y + 10
+  };
 }
 
   if (obj.type === "shape") {
@@ -481,18 +631,26 @@ function render() {
         drawTextOnContext(ctx, obj);
       }
     }
-    if (state.selectedId === obj.id && obj.id !== editingTextId) {
-       drawSelection(obj);
-    }
   }
 
   // now draw this layer onto main canvas
   pen.drawImage(layer.canvas, 0, 0);
 }
 
+  // Draw selection UI on top after all layers are rendered
+  for (const layer of state.layers) {
+    if (!layer.visible) continue;
+    for (const obj of layer.objects) {
+      if (state.selectedId === obj.id && obj.id !== editingTextId) {
+        drawSelection(obj);
+      }
+    }
+  }
+
   if (state.mode === "crop" && state.crop.active) {
     drawCropBox();
   }
+  syncFillToggleWithSelection();
   renderLayerPanel();
   if (state.lastMousePos) drawCursor(state.lastMousePos.x, state.lastMousePos.y);
 }
@@ -584,12 +742,7 @@ function drawStrokeOnContext(ctx, stroke) {
 function drawText(obj) {
   pen.save();
 
-  let font = "";
-  if (obj.bold) font += "bold ";
-  if (obj.italic) font += "italic ";
-  font += `${obj.fontSize}px ${obj.fontFamily}`;
-
-  pen.font = font;
+  pen.font = buildFontString(obj);
   pen.fillStyle = obj.color;
   pen.textAlign = obj.align || "left";
 
@@ -635,35 +788,46 @@ function reinitializeLayerCanvases() {
 function drawTextOnContext(ctx, obj) {
   ctx.save();
 
-  let font = "";
-  if (obj.bold) font += "bold ";
-  if (obj.italic) font += "italic ";
-  font += `${obj.fontSize}px ${obj.fontFamily}`;
-
-  ctx.font = font;
+  ctx.font = buildFontString(obj);
   ctx.fillStyle = obj.color;
-  ctx.textAlign = obj.align || "left";
+  const width = ctx.measureText(obj.text).width;
 
   let drawX = obj.x;
   let drawY = obj.y;
 
+  // Apply alignment before rotation
+  if (obj.align === "center") {
+    drawX = obj.x - width / 2;
+  } else if (obj.align === "right") {
+    drawX = obj.x - width;
+  }
+
   if (obj.rotation) {
     ctx.translate(obj.x, obj.y);
     ctx.rotate(obj.rotation);
-    drawX = 0;
+    // Adjust for alignment in rotated space
+    if (obj.align === "center") {
+      drawX = -width / 2;
+    } else if (obj.align === "right") {
+      drawX = -width;
+    } else {
+      drawX = 0;
+    }
     drawY = 0;
   }
 
+  ctx.textAlign = "left";
   ctx.fillText(obj.text, drawX, drawY);
 
-  const width = ctx.measureText(obj.text).width;
-
   if (obj.underline) {
+    let underlineStart = drawX;
+    let underlineEnd = drawX + width;
+
     ctx.beginPath();
-    ctx.moveTo(drawX, drawY + 4);
-    ctx.lineTo(drawX + width, drawY + 4);
+    ctx.moveTo(underlineStart, drawY + 4);
+    ctx.lineTo(underlineEnd, drawY + 4);
     ctx.strokeStyle = obj.color;
-    ctx.lineWidth = obj.fontSize / 15;
+    ctx.lineWidth = Math.max(1, obj.fontSize / 15);
     ctx.stroke();
   }
 
@@ -695,9 +859,11 @@ function assignShapeDrawFunction(shape) {
   if (shape.shapeType === "circle") {
     shape.draw = function(pen) {
       pen.save();
+      pen.translate(this.x, this.y);
+      pen.rotate(this.rotation || 0);
       pen.strokeStyle = this.color;
       pen.beginPath();
-      pen.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      pen.arc(0, 0, this.radius, 0, Math.PI * 2);
 
       if (this.fill) {
         pen.fillStyle = this.color;
@@ -739,6 +905,7 @@ function assignShapeDrawFunction(shape) {
     shape.draw = function(pen) {
       pen.save();
       pen.strokeStyle = this.color;
+      pen.lineWidth = 2;
 
       const centerX = (this.x + this.x2) / 2;
       const centerY = (this.y + this.y2) / 2;
@@ -786,6 +953,8 @@ function assignShapeDrawFunction(shape) {
 }
 
 function drawShape(shapeType) {
+  finishActiveTextInput(true);
+
   let shape;
 
   if (shapeType === "rectangle") {
@@ -854,6 +1023,7 @@ function drawShape(shapeType) {
   saveHistory();
   state.selectedId = shape.id;
   state.mode = "select";
+  state.currentTool = "select";
   updateToolButtons();
   render();
 }
@@ -885,6 +1055,7 @@ function restoreShapeFunctions() {
 function applyZoom() {
   canvas.style.transform = `scale(${state.zoom})`;
   canvas.style.transformOrigin = "top center";
+  refreshActiveTextInput();
 }
 function exportCanvasAsPng() {
   const exportCanvas = document.createElement("canvas");
@@ -914,6 +1085,8 @@ function exportCanvasAsPng() {
   }
 
   for (const layer of state.layers) {
+    if (!layer.visible) continue;
+
     for (const obj of layer.objects) {
       if (obj.type === "stroke") {
         exportPen.save();
@@ -944,6 +1117,10 @@ function exportCanvasAsPng() {
       if (obj.type === "shape") {
         obj.draw(exportPen);
       }
+
+      if (obj.type === "text") {
+        drawTextOnContext(exportPen, obj);
+      }
     }
   }
 
@@ -955,18 +1132,20 @@ function exportCanvasAsPng() {
 
 
 function applyAlignToSelected() {
-  if (!state.selectedId) return;
+  const obj = getSelectedTextObject();
 
-  const record = getObjectRecordById(state.selectedId);
-  if (!record) return;
-
-  const obj = record.obj;
-
-  if (obj.type === "text") {
+  if (obj) {
     obj.align = textSettings.align;
-    saveHistory();
-    render();
   }
+
+  if (activeTextInput) {
+    refreshActiveTextInput();
+  }
+
+  if (!obj) return;
+
+  saveHistory();
+  render();
 }
 
 
@@ -1019,6 +1198,15 @@ state.brush.fill = fillToggle.checked;
 
 fillToggle.addEventListener("change", (e) => {
   state.brush.fill = e.target.checked;
+
+  const record = state.selectedId ? getObjectRecordById(state.selectedId) : null;
+  const obj = record?.obj || null;
+
+  if (isFillableShape(obj)) {
+    obj.fill = e.target.checked;
+    saveHistory();
+    render();
+  }
 });
 
 function drawSelection(obj) {
@@ -1184,11 +1372,14 @@ function updateToolButtons() {
   eraseBtn.classList.remove("activeTool");
   selectBtn.classList.remove("activeTool");
   cropBtn.classList.remove("activeTool");
+  addTextBtn.classList.remove("activeTool");
 
   if (state.mode === "select") {
     selectBtn.classList.add("activeTool");
   } else if (state.mode === "crop") {
     cropBtn.classList.add("activeTool");
+  } else if (state.currentTool === "text") {
+    addTextBtn.classList.add("activeTool");
   } else {
     if (state.currentTool === "paint") {
       paintBtn.classList.add("activeTool");
@@ -1204,7 +1395,75 @@ function updateToolButtons() {
   }
 }
 
+function activateSelectMode() {
+  const hadActiveTextInput = !!activeTextInput;
+  finishActiveTextInput(true);
+
+  if (hadActiveTextInput) {
+    state.mode = "select";
+    state.currentTool = "select";
+    updateToolButtons();
+    render();
+    return;
+  }
+
+  if (state.mode === "select") {
+    state.mode = "draw";
+    state.selectedId = null;
+  } else {
+    state.mode = "select";
+    state.currentTool = "select";
+  }
+
+  updateToolButtons();
+  render();
+}
+
+function activateCropMode() {
+  finishActiveTextInput(true);
+
+  if (state.mode === "crop") {
+    state.mode = "draw";
+    state.crop.active = false;
+  } else {
+    state.mode = "crop";
+    state.selectedId = null;
+  }
+
+  updateToolButtons();
+  render();
+}
+
+function resizeCanvasFromPrompt() {
+  finishActiveTextInput(true);
+
+  const newWidth = prompt("Enter new canvas width", canvas.width);
+  if (newWidth === null) return;
+
+  const newHeight = prompt("Enter new canvas height", canvas.height);
+  if (newHeight === null) return;
+
+  const width = Number(newWidth);
+  const height = Number(newHeight);
+
+  if (!width || !height || width < 50 || height < 50) {
+    alert("Invalid canvas size");
+    return;
+  }
+
+  state.canvas.width = width;
+  state.canvas.height = height;
+  canvas.width = width;
+  canvas.height = height;
+  reinitializeLayerCanvases();
+  applyZoom();
+
+  saveHistory();
+  render();
+}
+
 paintBtn.addEventListener("click", () => {
+  finishActiveTextInput(true);
   state.mode = "draw";
   state.currentTool = "paint";
   state.selectedId = null;
@@ -1228,6 +1487,8 @@ addTextBtn.addEventListener("click", (e) => {
   state.currentTool = "text";
   state.mode = "draw";
   state.selectedId = null;
+  updateToolButtons();
+  render();
 });
 
 fontFamilySelect.addEventListener("change", () => {
@@ -1236,7 +1497,8 @@ fontFamilySelect.addEventListener("change", () => {
 });
 
 fontSizeInput.addEventListener("change", () => {
-  textSettings.fontSize = Number(fontSizeInput.value);
+  textSettings.fontSize = Math.max(8, Number(fontSizeInput.value) || 20);
+  fontSizeInput.value = textSettings.fontSize;
   applyTextStylesToSelected();
 });
 
@@ -1244,53 +1506,42 @@ fontSizeInput.addEventListener("change", () => {
 
 boldBtn.addEventListener("click", () => {
   textSettings.bold = !textSettings.bold;
-  boldBtn.classList.toggle("activeTool", textSettings.bold);
+  updateTextControls();
   applyTextStylesToSelected();
 });
 
 italicBtn.addEventListener("click", () => {
   textSettings.italic = !textSettings.italic;
-  italicBtn.classList.toggle("activeTool", textSettings.italic);
+  updateTextControls();
   applyTextStylesToSelected();
 });
 
 underlineBtn.addEventListener("click", () => {
   textSettings.underline = !textSettings.underline;
-  underlineBtn.classList.toggle("activeTool", textSettings.underline);
+  updateTextControls();
   applyTextStylesToSelected();
 });
 
-alignLeftBtn.onclick = () => {
+alignLeftBtn.addEventListener("click", () => {
   textSettings.align = "left";
-
-  alignLeftBtn.classList.add("activeTool");
-  alignCenterBtn.classList.remove("activeTool");
-  alignRightBtn.classList.remove("activeTool");
-
+  updateTextControls();
   applyAlignToSelected();
-};
+});
 
-alignCenterBtn.onclick = () => {
+alignCenterBtn.addEventListener("click", () => {
   textSettings.align = "center";
-
-  alignCenterBtn.classList.add("activeTool");
-  alignLeftBtn.classList.remove("activeTool");
-  alignRightBtn.classList.remove("activeTool");
-
+  updateTextControls();
   applyAlignToSelected();
-};
+});
 
-alignRightBtn.onclick = () => {
+alignRightBtn.addEventListener("click", () => {
   textSettings.align = "right";
-
-  alignRightBtn.classList.add("activeTool");
-  alignLeftBtn.classList.remove("activeTool");
-  alignCenterBtn.classList.remove("activeTool");
-
+  updateTextControls();
   applyAlignToSelected();
-};
+});
 
 highlightBtn.addEventListener("click", () => {
+  finishActiveTextInput(true);
   state.mode = "draw";
   state.currentTool = "highlight";
   state.selectedId = null;
@@ -1301,6 +1552,7 @@ highlightBtn.addEventListener("click", () => {
 });
 
 eraseBtn.addEventListener("click", () => {
+  finishActiveTextInput(true);
   state.mode = "draw";
   state.currentTool = "erase";
   state.selectedId = null;
@@ -1310,53 +1562,25 @@ eraseBtn.addEventListener("click", () => {
   render();
 });
 
-selectBtn.addEventListener("click", () => {
-  if (state.mode === "select") {
-    state.mode = "draw";
-    state.selectedId = null;
-  } else {
-    state.mode = "select";
-  }
-
-  updateToolButtons();
-  render();
+selectBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  activateSelectMode();
+  closeToolbarDropdowns();
 });
 
-cropBtn.addEventListener("click", () => {
-  if (state.mode === "crop") {
-    state.mode = "draw";
-    state.crop.active = false;
-  } else {
-    state.mode = "crop";
-    state.selectedId = null;
-  }
-
-  updateToolButtons();
-  render();
+cropBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  activateCropMode();
+  closeToolbarDropdowns();
 });
 
-resizeCanvasBtn.addEventListener("click", () => {
-  const newWidth = prompt("Enter new canvas width", canvas.width);
-  if (newWidth === null) return;
-
-  const newHeight = prompt("Enter new canvas height", canvas.height);
-  if (newHeight === null) return;
-
-  const width = Number(newWidth);
-  const height = Number(newHeight);
-
-  if (!width || !height || width < 50 || height < 50) {
-    alert("Invalid canvas size");
-    return;
-  }
-
-  state.canvas.width = width;
-  state.canvas.height = height;
-  canvas.width = width;
-  canvas.height = height;
-
-  saveHistory();
-  render();
+resizeCanvasBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  closeToolbarDropdowns();
+  resizeCanvasFromPrompt();
 });
 
 zoomInBtn.addEventListener("click", () => {
@@ -1485,6 +1709,12 @@ function cropCanvas() {
 
         newObjects.push(obj);
       }
+
+      if (obj.type === "text") {
+        obj.x -= x;
+        obj.y -= y;
+        newObjects.push(obj);
+      }
     }
 
     layer.objects = newObjects;
@@ -1494,6 +1724,8 @@ function cropCanvas() {
   state.canvas.height = height;
   canvas.width = width;
   canvas.height = height;
+  reinitializeLayerCanvases();
+  applyZoom();
 
   state.selectedId = null;
   state.crop.active = false;
@@ -1507,13 +1739,13 @@ function cropCanvas() {
 function toggleDropdown(id) {
   const el = document.getElementById(id);
   const wasOpen = el.classList.contains("open");
-  document.querySelectorAll(".drop-wrap").forEach(d => d.classList.remove("open"));
+  closeToolbarDropdowns();
   if (!wasOpen) el.classList.add("open");
 }
 
 document.addEventListener("click", e => {
   if (!e.target.closest(".drop-wrap")) {
-    document.querySelectorAll(".drop-wrap").forEach(d => d.classList.remove("open"));
+    closeToolbarDropdowns();
   }
 });
 
@@ -1523,7 +1755,157 @@ document.addEventListener("click", (e) => {
   }
 });
 
+editDropdownMenu.addEventListener("click", (e) => {
+  e.stopPropagation();
+});
+
 window.toggleDropdown = toggleDropdown;
+
+function finishActiveTextInput(commitChanges) {
+  if (!activeTextInput) return false;
+
+  const input = activeTextInput;
+  const mode = input.dataset.mode;
+  const targetId = input.dataset.targetId;
+  const textValue = input.value;
+  const hasText = textValue.trim() !== "";
+  const draftX = Number(input.dataset.canvasX);
+  const draftY = Number(input.dataset.canvasY);
+  const draftColor = input.dataset.color || state.brush.color;
+
+  activeTextInput = null;
+  input.remove();
+
+  if (mode === "edit") {
+    const record = targetId ? getObjectRecordById(targetId) : null;
+    const obj = record?.obj || null;
+
+    editingTextId = null;
+
+    if (!obj || obj.type !== "text") {
+      render();
+      return false;
+    }
+
+    if (commitChanges && hasText) {
+      obj.text = textValue;
+      obj.color = draftColor;
+      saveHistory();
+    }
+
+    state.selectedId = obj.id;
+    state.activeLayerId = record.layer.id;
+    state.mode = "select";
+    state.currentTool = "select";
+    loadTextSettings(obj);
+    updateToolButtons();
+    render();
+    return commitChanges && hasText;
+  }
+
+  editingTextId = null;
+
+  if (commitChanges && hasText) {
+    const textObj = {
+      id: createId(),
+      type: "text",
+      x: draftX,
+      y: draftY,
+      text: textValue,
+      fontSize: textSettings.fontSize,
+      fontFamily: textSettings.fontFamily,
+      bold: textSettings.bold,
+      italic: textSettings.italic,
+      underline: textSettings.underline,
+      align: textSettings.align,
+      color: draftColor,
+      rotation: 0
+    };
+
+    getActiveLayer().objects.push(textObj);
+    state.selectedId = textObj.id;
+    state.activeLayerId = getActiveLayer().id;
+    state.mode = "select";
+    state.currentTool = "select";
+    loadTextSettings(textObj);
+    saveHistory();
+    updateToolButtons();
+    render();
+    return true;
+  }
+
+  state.selectedId = null;
+  state.mode = "draw";
+  state.currentTool = "text";
+  updateToolButtons();
+  render();
+  return false;
+}
+
+function openTextEditor({ x, y, text = "", color = state.brush.color, targetId = null, selectText = false }) {
+  finishActiveTextInput(true);
+
+  const textObj = targetId ? getObjectRecordById(targetId)?.obj || null : null;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = textObj?.text ?? text;
+  input.placeholder = "Type here...";
+  input.dataset.mode = textObj ? "edit" : "create";
+  input.dataset.targetId = textObj?.id ?? "";
+  input.dataset.canvasX = String(textObj?.x ?? x);
+  input.dataset.canvasY = String(textObj?.y ?? y);
+  input.dataset.color = textObj?.color ?? color;
+  input.style.position = "absolute";
+  input.style.border = "1px dashed #333";
+  input.style.background = "transparent";
+  input.style.outline = "none";
+  input.style.zIndex = 1000;
+  input.style.padding = "4px 6px";
+  input.style.minWidth = "120px";
+  input.style.boxSizing = "border-box";
+
+  if (textObj) {
+    editingTextId = textObj.id;
+    state.selectedId = textObj.id;
+    loadTextSettings(textObj);
+  } else {
+    editingTextId = null;
+    state.selectedId = null;
+  }
+
+  activeTextInput = input;
+  document.body.appendChild(input);
+  refreshActiveTextInput();
+  render();
+  input.focus();
+
+  if (selectText) {
+    input.select();
+  } else {
+    const textLength = input.value.length;
+    input.setSelectionRange(textLength, textLength);
+  }
+
+  input.addEventListener("input", () => {
+    refreshActiveTextInput();
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      finishActiveTextInput(true);
+    }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      finishActiveTextInput(false);
+    }
+  });
+}
+
+window.addEventListener("resize", refreshActiveTextInput);
+window.addEventListener("scroll", refreshActiveTextInput);
 
 canvas.addEventListener("dblclick", (event) => {
   const pos = getMousePosition(event);
@@ -1534,55 +1916,12 @@ canvas.addEventListener("dblclick", (event) => {
   const obj = record.obj;
 
   if (obj.type !== "text") return;
-
-  editingTextId = obj.id;
-
-  if (activeTextInput) {
-    activeTextInput.remove();
-  }
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.value = obj.text;
-
-  const rect = canvas.getBoundingClientRect();
-
-  input.style.position = "absolute";
-  input.style.left = rect.left + obj.x + "px";
-  input.style.top = rect.top + (obj.y - obj.fontSize) + "px";
-  input.style.fontSize = obj.fontSize + "px";
-  input.style.fontFamily = obj.fontFamily;
-  input.style.border = "1px dashed #333";
-  input.style.background = "transparent";
-  input.style.color = obj.color;
-  input.style.outline = "none";
-  input.style.zIndex = 1000;
-
-  document.body.appendChild(input);
-  input.focus();
-
-  activeTextInput = input;
-
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      obj.text = input.value;
-
-      input.remove();
-      activeTextInput = null;
-      editingTextId = null;
-
-      state.selectedId = obj.id;
-      state.mode = "select";
-
-      saveHistory();
-      render();
-    }
-
-    if (e.key === "Escape") {
-      input.remove();
-      activeTextInput = null;
-      editingTextId = null;
-    }
+  state.activeLayerId = record.layer.id;
+  openTextEditor({
+    x: obj.x,
+    y: obj.y,
+    targetId: obj.id,
+    selectText: true
   });
 });
 
@@ -1590,12 +1929,24 @@ canvas.addEventListener("dblclick", (event) => {
 canvas.addEventListener("mousedown", (event) => {
   const pos = getMousePosition(event);
 
+  if (state.mode === "crop") {
+    state.crop.active = true;
+    state.crop.startX = pos.x;
+    state.crop.startY = pos.y;
+    state.crop.currentX = pos.x;
+    state.crop.currentY = pos.y;
+    render();
+    return;
+  }
+
   if (state.mode !== "select" && state.currentTool !== "text") {
     const clickedRecord = getObjectAt(pos.x, pos.y);
     if (clickedRecord && clickedRecord.obj.type === "text") {
       state.selectedId = clickedRecord.obj.id;
       state.activeLayerId = clickedRecord.layer.id;
       state.mode = "select";
+      state.currentTool = "select";
+      loadTextSettings(clickedRecord.obj);
       updateToolButtons();
       render();
       return;
@@ -1603,126 +1954,77 @@ canvas.addEventListener("mousedown", (event) => {
   }
 
   if (state.currentTool === "text") {
+    const clickedRecord = getObjectAt(pos.x, pos.y);
 
-  const clickedRecord = getObjectAt(pos.x, pos.y);
+    if (clickedRecord && clickedRecord.obj.type === "text") {
+      finishActiveTextInput(true);
+      state.selectedId = clickedRecord.obj.id;
+      state.activeLayerId = clickedRecord.layer.id;
+      state.mode = "select";
+      state.currentTool = "select";
+      loadTextSettings(clickedRecord.obj);
+      updateToolButtons();
+      render();
+      return;
+    }
 
-  // if clicking existing text then select instead of creating new
-  if (clickedRecord && clickedRecord.obj.type === "text") {
-    state.selectedId = clickedRecord.obj.id;
-    state.activeLayerId = clickedRecord.layer.id;
-    state.mode = "select";
+    openTextEditor({
+      x: pos.x,
+      y: pos.y,
+      color: state.brush.color
+    });
     updateToolButtons();
-    render();
     return;
   }
 
-  // else create new text
-  if (activeTextInput) {
-    activeTextInput.remove();
-  }
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "Type here...";
-
-  const rect = canvas.getBoundingClientRect();
-
-  input.style.position = "absolute";
-  input.style.left = rect.left + pos.x + "px";
-  input.style.top = rect.top + pos.y + "px";
-  input.style.fontSize = textSettings.fontSize + "px";
-  input.style.fontFamily = textSettings.fontFamily;
-  input.style.border = "1px dashed #333";
-  input.style.background = "transparent";
-  input.style.color = state.brush.color;
-  input.style.outline = "none";
-  input.style.zIndex = 1000;
-
-  document.body.appendChild(input);
-  input.focus();
-
-  activeTextInput = input;
-
-  input.addEventListener("keydown", (e) => {
-
-    if (e.key === "Enter") {
-      if (input.value.trim() !== "") {
-        getActiveLayer().objects.push({
-          id: createId(),
-          type: "text",
-          x: pos.x,
-          y: pos.y,
-          text: input.value,
-          fontSize: textSettings.fontSize,
-          fontFamily: textSettings.fontFamily,
-          bold: textSettings.bold,
-          italic: textSettings.italic,
-          underline: textSettings.underline,
-          align: textSettings.align,
-          color: state.brush.color,
-          rotation: 0
-        });
-
-        saveHistory();
-        render();
-      }
-
-      input.remove();
-      activeTextInput = null;
-
-      // switch back to select
-      state.currentTool = "paint";
-      state.mode = "select";
-
-      updateToolButtons();
-    }
-
-    if (e.key === "Escape") {
-      input.remove();
-      activeTextInput = null;
-
-      state.currentTool = "paint";
-      state.mode = "draw";
-    }
-  });
-
-  return;
-}
-
 
   if (state.mode === "select") {
+    if (state.selectedId) {
+      const selectedRecord = getObjectRecordById(state.selectedId);
+      const selectedObj = selectedRecord?.obj || null;
+
+      if (selectedObj && (selectedObj.type === "shape" || selectedObj.type === "text")) {
+        const rotateClicked = getRotateHandle(selectedObj, pos.x, pos.y);
+
+        if (rotateClicked) {
+          rotating = true;
+
+          const center = getObjectCenter(selectedObj);
+          const mouseAngle = Math.atan2(pos.y - center.y, pos.x - center.x);
+
+          rotationOffset = mouseAngle - (selectedObj.rotation || 0);
+          render();
+          return;
+        }
+      }
+
+      if (selectedObj) {
+        const handle = getResizeHandle(selectedObj, pos.x, pos.y);
+
+        if (handle) {
+          resizing = true;
+          resizeHandle = handle;
+          dragStart = pos;
+          render();
+          return;
+        }
+      }
+    }
 
     const clickedRecord = getObjectAt(pos.x, pos.y);  
     if (clickedRecord) {
 
       const obj = clickedRecord.obj;
-      
 
       if (obj.type === "text") {
-         textSettings.align = obj.align || "left";
-
-         textSettings.fontFamily = obj.fontFamily;
-         textSettings.fontSize = obj.fontSize;
-         textSettings.bold = obj.bold;
-         textSettings.italic = obj.italic;
-         textSettings.underline = obj.underline;
-
-         fontFamilySelect.value = obj.fontFamily;
-         fontSizeInput.value = obj.fontSize;
-
-         boldBtn.classList.toggle("activeTool", obj.bold);
-         italicBtn.classList.toggle("activeTool", obj.italic);
-         underlineBtn.classList.toggle("activeTool", obj.underline);
-
-         alignLeftBtn.classList.toggle("activeTool", obj.align === "left");
-         alignCenterBtn.classList.toggle("activeTool", obj.align === "center");
-        alignRightBtn.classList.toggle("activeTool", obj.align === "right");
+        state.selectedId = obj.id;
+        state.activeLayerId = clickedRecord.layer.id;
+        loadTextSettings(obj);
+      } else {
+        state.selectedId = obj.id;
+        console.log("Selected:", obj);
+        state.activeLayerId = clickedRecord.layer.id;
       }
-
-
-      state.selectedId = obj.id;
-      console.log("Selected:", obj);
-      state.activeLayerId = clickedRecord.layer.id;
 
       // check resize
       const handle = getResizeHandle(obj, pos.x, pos.y);
@@ -1856,8 +2158,10 @@ canvas.addEventListener("mousemove", (event) => {
 
 
     if (obj.type === "text") {
-  obj.fontSize = Math.max(8, obj.fontSize + dy * 0.5);
-}
+      obj.fontSize = Math.max(8, obj.fontSize + dy * 0.5);
+      textSettings.fontSize = Math.round(obj.fontSize);
+      fontSizeInput.value = textSettings.fontSize;
+    }
 
     if (obj.type === "shape") {
       if (obj.shapeType === "rectangle" || obj.shapeType === "triangle" || obj.shapeType === "image") {
@@ -1881,10 +2185,20 @@ canvas.addEventListener("mousemove", (event) => {
           obj.width -= dx;
           obj.height += dy;
         }
+
+        if (obj.width < 0) {
+          obj.x += obj.width;
+          obj.width = Math.abs(obj.width);
+        }
+
+        if (obj.height < 0) {
+          obj.y += obj.height;
+          obj.height = Math.abs(obj.height);
+        }
       }
 
       if (obj.shapeType === "circle") {
-        obj.radius += dx * 0.5;
+        obj.radius = Math.max(5, obj.radius + dx * 0.5);
       }
 
       if (obj.shapeType === "line") {
@@ -1968,6 +2282,19 @@ window.addEventListener("mouseup", () => {
 // UI controls
 colorPicker.addEventListener("change", (e) => {
   state.brush.color = e.target.value;
+
+  const textObj = getSelectedTextObject();
+
+  if (activeTextInput) {
+    activeTextInput.dataset.color = state.brush.color;
+    refreshActiveTextInput();
+  }
+
+  if (textObj) {
+    textObj.color = state.brush.color;
+    saveHistory();
+    render();
+  }
 });
 
 brushSize.addEventListener("change", (e) => {
@@ -2003,8 +2330,15 @@ function deleteSelected() {
 }
 
 // Delete selected
-deleteBtn.addEventListener("click", deleteSelected);
+deleteBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  deleteSelected();
+  closeToolbarDropdowns();
+});
 document.addEventListener("keydown", (e) => {
+  if (activeTextInput || e.target.tagName === "INPUT") return;
+
   if (e.key === "Delete") {
     deleteSelected();
   }
@@ -2078,7 +2412,6 @@ loadProjectInput.addEventListener("change", async (e) => {
   canvas.height = state.canvas.height;
   reinitializeLayerCanvases();
   restoreShapeFunctions();
-  restoreShapeFunctions();
   applyZoom();
   state.selectedId = loadedData.selectedId ?? null;
   state.mode = loadedData.mode ?? "draw";
@@ -2092,12 +2425,20 @@ loadProjectInput.addEventListener("change", async (e) => {
   brushSize.value = String(state.brush.size);
   fillToggle.checked = !!state.brush.fill;
 
+  const selectedText = getSelectedTextObject();
+  if (selectedText) {
+    loadTextSettings(selectedText);
+  } else {
+    updateTextControls();
+  }
+
   updateToolButtons();
   render();
   e.target.value = "";
 });
 
 // First render
+updateTextControls();
 updateToolButtons();
 render();
 saveHistory();
